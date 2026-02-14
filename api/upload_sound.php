@@ -45,8 +45,19 @@ if ($file['size'] > 5 * 1024 * 1024) {
 }
 
 $soundsDir = dirname(__DIR__) . '/sounds/';
+
+// ตรวจสอบและสร้าง sounds directory
 if (!is_dir($soundsDir)) {
-    mkdir($soundsDir, 0755, true);
+    if (!mkdir($soundsDir, 0755, true)) {
+        echo json_encode(['success' => false, 'message' => 'ไม่สามารถสร้างโฟลเดอร์ sounds ได้ กรุณาตรวจสอบสิทธิ์การเขียน']);
+        exit;
+    }
+}
+
+// ตรวจสอบสิทธิ์การเขียนใน sounds directory
+if (!is_writable($soundsDir)) {
+    echo json_encode(['success' => false, 'message' => 'โฟลเดอร์ sounds ไม่มีสิทธิ์การเขียน กรุณาตั้งค่า permissions (chmod 755 sounds/)']);
+    exit;
 }
 
 $newFileName = 'sound_' . preg_replace('/[^a-zA-Z0-9_-]/', '_', $locationCode) . '_' . time() . '.' . $ext;
@@ -71,8 +82,38 @@ try {
         }
     }
 
+    // ตรวจสอบว่า temp file มีอยู่จริง
+    if (!is_uploaded_file($file['tmp_name'])) {
+        throw new Exception('ไฟล์อัปโหลดไม่ถูกต้อง');
+    }
+
+    // พยายามย้ายไฟล์ ถ้าไม่ได้ให้ตรวจสอบ error รายละเอียด
     if (!move_uploaded_file($file['tmp_name'], $destPath)) {
-        throw new Exception('ไม่สามารถบันทึกไฟล์ได้');
+        $uploadErrors = [
+            UPLOAD_ERR_INI_SIZE => 'ขนาดไฟล์เกิน limit ใน php.ini',
+            UPLOAD_ERR_FORM_SIZE => 'ขนาดไฟล์เกิน limit ใน HTML form',
+            UPLOAD_ERR_PARTIAL => 'ไฟล์ถูกอัปโหลดเพียงบางส่วน',
+            UPLOAD_ERR_NO_FILE => 'ไม่มีไฟล์ถูกอัปโหลด',
+            UPLOAD_ERR_NO_TMP_DIR => 'ไม่มี temporary directory',
+            UPLOAD_ERR_CANT_WRITE => 'ไม่สามารถเขียนไฟล์ลง disk',
+            UPLOAD_ERR_EXTENSION => 'PHP extension หยุดการอัปโหลด'
+        ];
+        
+        $errorMsg = $uploadErrors[$file['error']] ?? 'ไม่สามารถบันทึกไฟล์ได้ (Error: ' . $file['error'] . ')';
+        
+        // เพิ่มข้อมูล debug
+        $debugInfo = [
+            'temp_file' => $file['tmp_name'],
+            'temp_exists' => file_exists($file['tmp_name']),
+            'temp_readable' => is_readable($file['tmp_name']),
+            'dest_path' => $destPath,
+            'sounds_dir_writable' => is_writable($soundsDir),
+            'upload_max_filesize' => ini_get('upload_max_filesize'),
+            'post_max_size' => ini_get('post_max_size'),
+            'max_execution_time' => ini_get('max_execution_time')
+        ];
+        
+        throw new Exception($errorMsg . ' | Debug: ' . json_encode($debugInfo));
     }
 
     $escapedFile = $conn->real_escape_string($newFileName);
