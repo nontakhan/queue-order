@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>คิวออเดอร์ - จัดการออเดอร์</title>
+
+    <!-- PWA & Favicon -->
+    <link rel="icon" href="favicon.ico" sizes="any">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#16a34a">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; }
+        .loader { border-top-color: #16a34a; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        tr.removing { opacity: 0; transition: opacity 0.5s ease-out; }
+        .item-row { cursor: pointer; }
+    </style>
+</head>
+<body class="bg-gray-50">
+
+    <!-- Location Selection Modal -->
+    <div id="locationModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-2xl w-full mx-4">
+            <h2 class="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-2">กรุณาเลือกคลังสินค้า</h2>
+            <p class="text-center text-gray-500 mb-6">เลือกคลังที่ต้องการตรวจรับเพื่อแสดงรายการ</p>
+            <div id="locationButtons" class="grid grid-cols-2 md:grid-cols-3 gap-4"></div>
+            <div id="locationLoader" class="text-center py-8 hidden">
+                <div class="flex justify-center items-center">
+                    <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div>
+                    <p class="ml-4 text-gray-600">กำลังโหลดข้อมูลคลัง...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Item Details Modal -->
+    <div id="detailsModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto" id="detailsModalContent">
+            <div class="flex justify-between items-center mb-6 border-b pb-4">
+                <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+                    <svg class="w-6 h-6 mr-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    รายละเอียดรายการ
+                </h2>
+                <button id="closeDetailsModal" class="text-gray-400 hover:text-gray-700 transition-colors text-3xl leading-none">&times;</button>
+            </div>
+            <div id="detailsContent" class="space-y-4">
+                <!-- Details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+
+    <div class="container mx-auto p-4 sm:p-6 md:p-8">
+        <!-- Header Updated -->
+        <header class="mb-6">
+            <div class="flex flex-wrap justify-between items-center gap-4">
+                <!-- Left Side: Logo, Title, and Location -->
+                <div class="flex items-center space-x-4">
+                    <svg class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                    <div>
+                        <h1 class="text-3xl md:text-4xl font-bold text-gray-800">คิวออเดอร์</h1>
+                        <p class="text-lg text-gray-600 -mt-1">รายการสินค้ารอตรวจรับ</p>
+                    </div>
+                    <div id="locationDisplay" class="ml-6">
+                        <span class="text-gray-500">กรุณาเลือกคลังเพื่อเริ่ม</span>
+                    </div>
+                </div>
+                <!-- Right Side: Controls -->
+                <div class="flex items-center gap-4">
+                    <div id="historyButtons" class="flex flex-wrap gap-3 hidden">
+                        <a id="receivedLink" href="#" class="flex items-center bg-green-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-green-600 transition">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            ดูรายการที่รับแล้ว
+                        </a>
+                        <a id="postponedLink" href="#" class="flex items-center bg-yellow-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-yellow-600 transition">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            ดูรายการที่เลื่อน
+                        </a>
+                        <a id="cancelledLink" href="#" class="flex items-center bg-red-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-red-600 transition">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            ดูรายการที่ยกเลิก
+                        </a>
+                    </div>
+                    <button id="soundToggleBtn" class="px-4 py-2 rounded-lg text-sm font-semibold transition hidden" title="เปิด/ปิดเสียงแจ้งเตือน"></button>
+                    <a href="sound_admin.html" id="soundAdminLink" class="bg-purple-100 text-purple-800 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-purple-200 transition hidden flex items-center"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>ตั้งค่าเสียง</a>
+                    <button id="changeLocationBtn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-300 transition hidden">เปลี่ยนคลัง</button>
+                </div>
+            </div>
+        </header>
+
+        <div id="mainContent" class="hidden">
+            <!-- Filter Section -->
+            <div class="bg-white p-4 rounded-xl shadow-sm mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                    <div class="lg:col-span-2">
+                        <label for="searchInput" class="block text-sm font-medium text-gray-700 mb-1">ค้นหา DocNo / ชื่อลูกค้า</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg></div>
+                            <input type="text" id="searchInput" placeholder="ค้นหา DocNo หรือชื่อลูกค้า..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="startDate" class="block text-sm font-medium text-gray-700 mb-1">จากวันที่</label>
+                        <input type="date" id="startDate" class="w-full py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition px-3">
+                    </div>
+                    <div>
+                        <label for="endDate" class="block text-sm font-medium text-gray-700 mb-1">ถึงวันที่</label>
+                        <input type="date" id="endDate" class="w-full py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition px-3">
+                    </div>
+                    <div class="flex gap-2 md:col-span-2 lg:col-span-4 justify-end">
+                         <button id="filterBtn" class="bg-green-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-600 transition w-full sm:w-auto">กรองข้อมูล</button>
+                         <button id="clearFilterBtn" class="bg-gray-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-gray-600 transition w-full sm:w-auto">ล้างค่า</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th class="px-2 py-3"></th>
+                                <th class="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">DocNo</th>
+                                <th class="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">วันที่เอกสาร</th>
+                                <th class="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">ชื่อลูกค้า</th>
+                                <th class="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">ชื่อสินค้า</th>
+                                <th class="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">จำนวน</th>
+                                <th class="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">หน่วย</th>
+                                <th class="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">อัปเดตล่าสุด / หมายเหตุ</th>
+                                <th class="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-center">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="itemsTableBody" class="divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+                <div id="tableStatus" class="p-6 text-center text-gray-500"></div>
+            </div>
+            <div id="paginationControls" class="flex justify-between items-center mt-6"></div>
+        </div>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // --- ประกาศตัวแปร ---
+    const locationModal = document.getElementById('locationModal');
+    const locationButtons = document.getElementById('locationButtons');
+    const locationLoader = document.getElementById('locationLoader');
+    const locationDisplay = document.getElementById('locationDisplay');
+    const changeLocationBtn = document.getElementById('changeLocationBtn');
+    const mainContent = document.getElementById('mainContent');
+    const tableBody = document.getElementById('itemsTableBody');
+    const tableStatus = document.getElementById('tableStatus');
+    const searchInput = document.getElementById('searchInput');
+    const paginationControls = document.getElementById('paginationControls');
+    const historyButtons = document.getElementById('historyButtons');
+    const startDateInput = document.getElementById('startDate');
+    const endDateInput = document.getElementById('endDate');
+    const filterBtn = document.getElementById('filterBtn');
+    const clearFilterBtn = document.getElementById('clearFilterBtn');
+    const detailsModal = document.getElementById('detailsModal');
+    const detailsContent = document.getElementById('detailsContent');
+    const closeDetailsModal = document.getElementById('closeDetailsModal');
+
+    const API_GET_LOCATIONS = './api/get_locations.php';
+    const API_FETCH_ITEMS = './api/fetch_items.php';
+    const API_UPDATE_STATUS = './api/update_status.php';
+    const API_GET_DETAILS = './api/get_item_details.php';
+    const API_CHECK_NEW = './api/check_new_items.php';
+    const API_GET_SOUNDS = './api/get_sounds.php';
+    
+    let selectedLocationInfo = null;
+    let currentPage = 1;
+    let currentSearchTerm = '';
+    let autoRefreshInterval = null;
+    let previousPendingCount = null;
+    let notificationSoundUrl = null;
+    let soundEnabled = localStorage.getItem('soundEnabled') !== 'false';
+    let audioContext = null;
+    let locationSoundMap = {};
+
+    // --- ฟังก์ชันต่างๆ ---
+    // โหลดรายการคลังที่มีเสียงตั้งค่าแล้ว
+    const loadLocationSoundMap = async () => {
+        try {
+            const response = await fetch(API_GET_SOUNDS);
+            const result = await response.json();
+            if (result.success && result.data.length > 0) {
+                result.data.forEach(s => { locationSoundMap[s.location_code] = s.original_name || s.sound_file; });
+            }
+        } catch (e) { console.error('Error loading sound map:', e); }
+    };
+
+    const fetchLocations = async () => { locationLoader.classList.remove('hidden'); locationButtons.innerHTML = ''; try { await loadLocationSoundMap(); const response = await fetch(API_GET_LOCATIONS); if (!response.ok) throw new Error(`Server error: ${response.status}`); const result = await response.json(); if (result.success && result.data.length > 0) { const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-red-500', 'bg-yellow-500', 'bg-indigo-500']; result.data.forEach((loc, index) => { const colorClass = colors[index % colors.length]; const button = document.createElement('button'); button.className = `${colorClass} text-white rounded-lg shadow-md hover:opacity-90 transition-opacity flex flex-col items-center justify-center p-3`; const codeSpan = document.createElement('span'); codeSpan.className = 'text-xl font-bold'; codeSpan.textContent = loc.location_code; const nameSpan = document.createElement('span'); nameSpan.className = 'text-xs mt-1 font-normal'; nameSpan.textContent = loc.location; button.appendChild(codeSpan); button.appendChild(nameSpan); if (locationSoundMap[loc.location_code]) { const soundBadge = document.createElement('span'); soundBadge.className = 'text-xs mt-1 bg-white bg-opacity-30 rounded-full px-2 py-0.5 flex items-center'; soundBadge.innerHTML = '🔔 มีเสียง'; button.appendChild(soundBadge); } button.dataset.location = loc.location_code; button.addEventListener('click', () => selectLocation(loc)); locationButtons.appendChild(button); }); } else { locationButtons.innerHTML = `<p class="col-span-full text-center text-red-500">ไม่พบข้อมูลคลังสินค้า</p>`; } } catch (error) { console.error('Error fetching locations:', error); locationButtons.innerHTML = `<p class="col-span-full text-center text-red-500">เกิดข้อผิดพลาด: ${error.message}</p>`; } finally { locationLoader.classList.add('hidden'); } };
+
+    const selectLocation = async (locationObject) => {
+        selectedLocationInfo = locationObject;
+        sessionStorage.setItem('selectedLocation', JSON.stringify(locationObject)); 
+        
+        locationModal.style.display = 'none';
+        mainContent.classList.remove('hidden');
+        changeLocationBtn.classList.remove('hidden');
+        
+        locationDisplay.innerHTML = `<div class="inline-flex items-center px-4 py-2 bg-green-100 text-green-800 rounded-lg shadow-sm"><svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg><div><span class="text-sm font-medium">คลังที่เลือก</span><strong class="block text-xl font-bold">${selectedLocationInfo.location_code}: ${selectedLocationInfo.location}</strong></div></div>`;
+        
+        document.getElementById('receivedLink').href = `history.html?location=${encodeURIComponent(selectedLocationInfo.location_code)}&status=${encodeURIComponent('รับแล้ว')}&location_name=${encodeURIComponent(selectedLocationInfo.location)}`;
+        document.getElementById('postponedLink').href = `history.html?location=${encodeURIComponent(selectedLocationInfo.location_code)}&status=${encodeURIComponent('เลื่อน')}&location_name=${encodeURIComponent(selectedLocationInfo.location)}`;
+        document.getElementById('cancelledLink').href = `history.html?location=${encodeURIComponent(selectedLocationInfo.location_code)}&status=${encodeURIComponent('ยกเลิก')}&location_name=${encodeURIComponent(selectedLocationInfo.location)}`;
+        historyButtons.classList.remove('hidden');
+
+        // Unlock AudioContext ทันทีตอนคลิก (ก่อน await ใดๆ)
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+
+        fetchItems();
+        await loadNotificationSound(locationObject.location_code);
+        await initPendingCount(locationObject.location_code);
+
+        document.getElementById('soundToggleBtn').classList.remove('hidden');
+        document.getElementById('soundAdminLink').classList.remove('hidden');
+        updateSoundToggleUI();
+
+        // เริ่ม auto-refresh ทันที
+        if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+        autoRefreshInterval = setInterval(() => {
+            console.log("Auto-refreshing data...");
+            fetchItems(currentPage);
+            checkForNewItems(locationObject.location_code);
+        }, 10000);
+    };
+
+    // --- Notification Sound Functions ---
+    const loadNotificationSound = async (locationCode) => {
+        try {
+            const response = await fetch(`${API_GET_SOUNDS}?location_code=${encodeURIComponent(locationCode)}`);
+            const result = await response.json();
+            if (result.success && result.data.length > 0) {
+                notificationSoundUrl = `./sounds/${result.data[0].sound_file}`;
+            } else {
+                notificationSoundUrl = null;
+            }
+        } catch (error) {
+            console.error('Error loading notification sound:', error);
+            notificationSoundUrl = null;
+        }
+    };
+
+    const initPendingCount = async (locationCode) => {
+        try {
+            const response = await fetch(`${API_CHECK_NEW}?location_code=${encodeURIComponent(locationCode)}`);
+            const result = await response.json();
+            if (result.success) {
+                previousPendingCount = result.data.total_pending;
+            }
+        } catch (error) {
+            console.error('Error init pending count:', error);
+        }
+    };
+
+    const checkForNewItems = async (locationCode) => {
+        try {
+            const countParam = previousPendingCount !== null ? `&last_count=${previousPendingCount}` : '';
+            const response = await fetch(`${API_CHECK_NEW}?location_code=${encodeURIComponent(locationCode)}${countParam}`);
+            const result = await response.json();
+            if (result.success) {
+                const newCount = result.data.total_pending;
+                if (previousPendingCount !== null && newCount > previousPendingCount) {
+                    const newItemCount = newCount - previousPendingCount;
+                    playNotificationSound();
+                    showNewItemPopup(newItemCount, result.data.new_items || []);
+                }
+                previousPendingCount = newCount;
+            }
+        } catch (error) {
+            console.error('Error checking new items:', error);
+        }
+    };
+
+    const showNewItemPopup = (count, newItems) => {
+        let itemsHtml = '';
+        if (newItems.length > 0) {
+            itemsHtml = newItems.map(item => 
+                `<div class="text-left bg-green-50 rounded-lg p-3 mb-2">
+                    <div class="font-bold text-green-800">${item.docno || ''}</div>
+                    <div class="text-sm text-gray-700">${item.custname || ''}</div>
+                    <div class="text-sm text-gray-500">${item.cd_name || ''} — ${parseFloat(item.qty || 0).toLocaleString()} ${item.Lname_unit || ''}</div>
+                </div>`
+            ).join('');
+        } else {
+            itemsHtml = `<p class="text-gray-600">มีรายการใหม่ ${count} รายการ</p>`;
+        }
+
+        Swal.fire({
+            title: '🔔 รายการใหม่เข้ามา!',
+            html: `<div class="max-h-80 overflow-y-auto">${itemsHtml}</div>`,
+            icon: 'info',
+            timer: 15000,
+            timerProgressBar: true,
+            showConfirmButton: true,
+            confirmButtonText: 'รับทราบ',
+            confirmButtonColor: '#16a34a',
+            position: 'center',
+            toast: false,
+            showClass: { popup: 'swal2-show' },
+            hideClass: { popup: 'swal2-hide' },
+            width: '600px',
+            heightAuto: false
+        });
+    };
+
+    const playNotificationSound = () => {
+        if (!soundEnabled || !notificationSoundUrl) return;
+        try {
+            // Resume AudioContext ถ้า suspended
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            const audio = new Audio(notificationSoundUrl);
+            audio.volume = 1.0;
+            // เชื่อมต่อกับ AudioContext เพื่อให้เล่นได้แน่นอน
+            if (audioContext) {
+                const source = audioContext.createMediaElementSource(audio);
+                source.connect(audioContext.destination);
+            }
+            audio.play().catch(err => console.warn('Cannot play sound:', err.message));
+        } catch (e) {
+            console.warn('Sound play error:', e);
+        }
+    };
+
+    const updateSoundToggleUI = () => {
+        const btn = document.getElementById('soundToggleBtn');
+        if (soundEnabled) {
+            btn.className = 'bg-green-100 text-green-800 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-200 transition flex items-center';
+            btn.innerHTML = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 6a7.001 7.001 0 010 14m0-14v14m-4-10v6"></path></svg> เสียงเปิด';
+        } else {
+            btn.className = 'bg-red-100 text-red-800 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-200 transition flex items-center';
+            btn.innerHTML = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path></svg> เสียงปิด';
+        }
+    };
+
+    const showLoading = () => { tableBody.innerHTML = ''; paginationControls.innerHTML = ''; tableStatus.innerHTML = `<div class="flex justify-center items-center py-10"><div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div><p class="ml-4 text-gray-600">กำลังโหลด...</p></div>`; tableStatus.classList.remove('hidden'); };
+    const showNoData = (message) => { tableBody.innerHTML = ''; paginationControls.innerHTML = ''; tableStatus.innerHTML = `<p class="py-10">${message}</p>`; tableStatus.classList.remove('hidden'); };
+    const hideStatus = () => { tableBody.innerHTML = ''; tableStatus.classList.add('hidden'); };
+    
+    const fetchItems = async (page = 1) => {
+        if (!selectedLocationInfo) return;
+        
+        if (document.querySelectorAll('.item-row').length === 0) {
+            showLoading();
+        }
+        
+        const searchTerm = searchInput.value.trim();
+        const startDate = startDateInput.value;
+        const endDate = endDateInput.value;
+        currentPage = page;
+        currentSearchTerm = searchTerm;
+
+        try {
+            const params = new URLSearchParams({
+                search: searchTerm,
+                page: page,
+                location: selectedLocationInfo.location_code,
+                startDate: startDate,
+                endDate: endDate
+            });
+
+            const apiUrl = `${API_FETCH_ITEMS}?${params.toString()}`;
+            const response = await fetch(apiUrl);
+
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            if (result.success && result.data.length > 0) {
+                renderTable(result.data);
+                renderPagination(result.pagination);
+            } else {
+                showNoData(searchTerm || startDate || endDate ? `ไม่พบรายการตามเงื่อนไขที่กำหนด` : 'ไม่มีรายการที่รอตรวจรับในคลังนี้');
+            }
+        } catch (error) {
+            console.error('Fetch error:', error);
+            showNoData('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์');
+        }
+    };
+    
+    const renderTable = (items) => {
+        hideStatus();
+        tableBody.innerHTML = '';
+        let lastDocNo = null;
+        let colorIndex = 0;
+        const groupColors = ['bg-white', 'bg-green-100'];
+
+        items.forEach(item => {
+            if (item.docno !== lastDocNo) {
+                lastDocNo = item.docno;
+                colorIndex = 1 - colorIndex;
+            }
+            const docDate = item.docdate ? new Date(item.docdate).toLocaleDateString('th-TH', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '';
+            let deliveryInfo = '-';
+            if (item.delivery_remark) {
+                deliveryInfo = `<span class="text-yellow-600 font-semibold">${item.delivery_remark}</span>`;
+            } else if (item.last_update) {
+                deliveryInfo = new Date(item.last_update).toLocaleString('th-TH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' น.';
+            }
+
+            let shipIconHTML = '';
+            if (item.shipflag === '1') {
+                shipIconHTML = `<div title="แผนกส่ง"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h8a1 1 0 001-1z" /><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h2a1 1 0 001-1V7a1 1 0 00-1-1h-2" /></svg></div>`;
+            } else {
+                shipIconHTML = `<div title="ลูกค้ารับเอง"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg></div>`;
+            }
+
+            const row = document.createElement('tr');
+            row.className = `${groupColors[colorIndex]} hover:bg-yellow-100 transition-colors duration-200 item-row`;
+            row.dataset.docno = item.docno;
+            row.dataset.cdcode = item.cd_code;
+            row.dataset.unit = item.unit;
+            row.dataset.price = item.UNITPRICE || '0';
+            row.dataset.shipflag = item.shipflag || '0';
+
+            row.innerHTML = `
+                <td class="px-2 py-4 flex justify-center items-center">${shipIconHTML}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800">${item.docno||''}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${docDate}</td>
+                <td class="px-6 py-4 text-sm text-gray-700">${item.customer_name||'N/A'}</td>
+                <td class="px-6 py-4 text-sm text-gray-700">${item.cd_name||''}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${parseFloat(item.qty).toLocaleString()||'0'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.unit||''}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${deliveryInfo}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
+                    <div class="flex items-center justify-center space-x-2">
+                        <button class="update-btn bg-green-100 text-green-800 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-200 transition" data-docno="${item.docno}" data-cdcode="${item.cd_code}" data-status="รับแล้ว">รับแล้ว</button>
+                        <button class="update-btn bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-200 transition" data-docno="${item.docno}" data-cdcode="${item.cd_code}" data-status="เลื่อน">เลื่อน</button>
+                        <button class="update-btn bg-red-100 text-red-800 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-200 transition" data-docno="${item.docno}" data-cdcode="${item.cd_code}" data-status="ยกเลิก">ยกเลิก</button>
+                    </div>
+                </td>
+            `;
+            tableBody.appendChild(row);
+        });
+    };
+
+    const showItemDetailsModal = async (keys) => {
+        detailsModal.classList.remove('hidden');
+        detailsContent.innerHTML = '<div class="flex justify-center items-center py-10"><div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div></div>';
+        
+        try {
+            const { docno, cdcode, unit, price, shipflag } = keys;
+            const apiUrl = `${API_GET_DETAILS}?docno=${encodeURIComponent(docno)}&cd_code=${encodeURIComponent(cdcode)}&unit=${encodeURIComponent(unit)}&price=${encodeURIComponent(price)}`;
+            const response = await fetch(apiUrl);
+            const result = await response.json();
+
+            if (result.success) {
+                const item = result.data;
+                const shipFlagHTML = shipflag === '1'
+                    ? `<p class="font-semibold flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h8a1 1 0 001-1z" /><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h2a1 1 0 001-1V7a1 1 0 00-1-1h-2" /></svg> แผนกส่ง</p>`
+                    : `<p class="font-semibold flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> ลูกค้ารับเอง</p>`;
+
+                detailsContent.innerHTML = `
+                    <!-- Section 1: Document Info -->
+                    <section>
+                        <h3 class="text-lg font-semibold text-gray-700 border-b mb-3 pb-2">ข้อมูลเอกสาร</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                            <div><p class="text-gray-500">เลขที่เอกสาร (DocNo)</p><p class="font-bold text-base">${item.docno || '-'}</p></div>
+                            <div><p class="text-gray-500">วันที่เอกสาร</p><p class="font-semibold">${item.docdate ? new Date(item.docdate).toLocaleDateString('th-TH', { day: '2-digit', month: 'long', year: 'numeric'}) : '-'}</p></div>
+                            <div><p class="text-gray-500">ลูกค้า</p><p class="font-semibold">${item.CUSTNAME || '-'}</p></div>
+                            <div><p class="text-gray-500">สาขา (Branch)</p><p class="font-semibold">${item.branch || '-'}</p></div>
+                            <div><p class="text-gray-500">พนักงานขาย</p><p class="font-semibold">${item.user_lname || '-'}</p></div>
+                            <div class="md:col-span-2"><p class="text-gray-500">หมายเหตุเอกสาร</p><p class="font-semibold">${item.REMARK || '-'}</p></div>
+                        </div>
+                    </section>
+
+                    <!-- Section 2: Product Info -->
+                    <section>
+                        <h3 class="text-lg font-semibold text-gray-700 border-b mt-4 mb-3 pb-2">ข้อมูลสินค้า</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                            <div class="md:col-span-2"><p class="text-gray-500">ชื่อสินค้า</p><p class="font-bold text-base text-green-700">${item.cd_name || '-'}</p></div>
+                            <div><p class="text-gray-500">รหัสสินค้า</p><p class="font-semibold">${item.cd_code || '-'}</p></div>
+                            <div><p class="text-gray-500">จำนวน</p><p class="font-semibold">${parseFloat(item.qty || 0).toLocaleString()} ${item.Lname_unit || ''}</p></div>
+                            <div><p class="text-gray-500">ราคา/หน่วย</p><p class="font-semibold">${parseFloat(item.UNITPRICE || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p></div>
+                            <div><p class="text-gray-500">รวมเป็นเงิน</p><p class="font-semibold">${parseFloat(item.NETAMOUNT || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p></div>
+                        </div>
+                    </section>
+
+                    <!-- Section 3: Delivery Info -->
+                    <section>
+                        <h3 class="text-lg font-semibold text-gray-700 border-b mt-4 mb-3 pb-2">ข้อมูลการจัดส่ง</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                             <div><p class="text-gray-500">รูปแบบการจัดส่ง</p>${shipFlagHTML}</div>
+                             <div><p class="text-gray-500">สถานะ</p><p class="font-bold text-base text-red-600">${item.delivery_status || 'รอตรวจรับ'}</p></div>
+                             <div><p class="text-gray-500">อัปเดตล่าสุด</p><p class="font-semibold">${item.last_update ? new Date(item.last_update).toLocaleString('th-TH', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute:'2-digit'}) + ' น.' : '-'}</p></div>
+                             <div class="md:col-span-2"><p class="text-gray-500">หมายเหตุการตรวจรับ</p><p class="font-semibold">${item.delivery_remark || '-'}</p></div>
+                        </div>
+                    </section>
+                `;
+            } else {
+                throw new Error(result.message || 'ไม่สามารถโหลดข้อมูลรายละเอียดได้');
+            }
+        } catch (error) {
+            detailsContent.innerHTML = `<p class="text-red-500 text-center p-4">${error.message}</p>`;
+        }
+    };
+
+    const renderPagination = (pagination) => {
+        paginationControls.innerHTML = '';
+        if (pagination.total_pages <= 1) return;
+        const { current_page, total_pages, total_items, items_per_page } = pagination;
+        const info = document.createElement('div');
+        const startItem = (current_page - 1) * items_per_page + 1;
+        const endItem = Math.min(startItem + items_per_page - 1, total_items);
+        info.className = 'text-sm text-gray-600';
+        info.innerText = `แสดง ${startItem} - ${endItem} จาก ${total_items}`;
+        paginationControls.appendChild(info);
+        const buttonsContainer = document.createElement('div');
+        buttonsContainer.className = 'flex items-center space-x-2';
+        const prevButton = document.createElement('button');
+        prevButton.innerHTML = '&laquo;';
+        prevButton.className = 'px-3 py-1 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50';
+        if (current_page === 1) prevButton.disabled = true;
+        prevButton.addEventListener('click', () => fetchItems(current_page - 1));
+        buttonsContainer.appendChild(prevButton);
+        const pageInfo = document.createElement('span');
+        pageInfo.className = 'px-3 py-1 text-sm font-semibold text-gray-700';
+        pageInfo.innerText = `หน้า ${current_page}/${total_pages}`;
+        buttonsContainer.appendChild(pageInfo);
+        const nextButton = document.createElement('button');
+        nextButton.innerHTML = '&raquo;';
+        nextButton.className = 'px-3 py-1 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50';
+        if (current_page >= total_pages) nextButton.disabled = true;
+        nextButton.addEventListener('click', () => fetchItems(current_page + 1));
+        buttonsContainer.appendChild(nextButton);
+        paginationControls.appendChild(buttonsContainer);
+    };
+    
+    const handleUpdateStatus = async (button) => {
+        if (!button) return;
+        const { docno, cdcode, status } = button.dataset;
+        let remark = null;
+
+        if (status === 'เลื่อน') {
+            const getReason = () => {
+                return new Promise((resolve) => {
+                    Swal.fire({
+                        title: 'เลือกเหตุผลที่เลื่อน',
+                        html: `
+                            <div class="flex flex-wrap justify-center gap-3 mt-4">
+                                <button id="reason1" class="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">รอมารับ</button>
+                                <button id="reason2" class="bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors">ยังไม่มีสินค้า</button>
+                                <button id="reason3" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors">อื่นๆ</button>
+                            </div>
+                        `,
+                        showConfirmButton: false,
+                        showCancelButton: true,
+                        cancelButtonText: 'ยกเลิก',
+                        didOpen: () => {
+                            document.getElementById('reason1').addEventListener('click', () => { Swal.close(); resolve('รอมารับ'); });
+                            document.getElementById('reason2').addEventListener('click', () => { Swal.close(); resolve('ยังไม่มีสินค้า'); });
+                            document.getElementById('reason3').addEventListener('click', () => { Swal.close(); resolve('อื่นๆ'); });
+                        }
+                    }).then((result) => {
+                        if (result.dismiss) {
+                            resolve(null);
+                        }
+                    });
+                });
+            };
+
+            const reason = await getReason();
+
+            if (reason === 'อื่นๆ') {
+                const { value: otherReason } = await Swal.fire({
+                    title: 'ระบุเหตุผลอื่นๆ',
+                    input: 'text',
+                    inputPlaceholder: 'กรุณาระบุเหตุผล...',
+                    showCancelButton: true,
+                    confirmButtonText: 'ยืนยัน',
+                    cancelButtonText: 'ยกเลิก',
+                    inputValidator: (value) => {
+                        if (!value) {
+                            return 'กรุณากรอกเหตุผล!';
+                        }
+                    }
+                });
+                if (otherReason) {
+                    remark = otherReason;
+                } else {
+                    return; 
+                }
+            } else if (reason) {
+                remark = reason;
+            } else {
+                return; 
+            }
+        }
+
+        Swal.fire({ 
+            title: 'ยืนยันการอัปเดต?', 
+            text: `เปลี่ยนสถานะ DocNo: ${docno} เป็น "${status}" ใช่หรือไม่?`, 
+            icon: 'question', 
+            showCancelButton: true, 
+            confirmButtonColor: '#16a34a', 
+            cancelButtonColor: '#ef4444', 
+            confirmButtonText: 'ใช่, ยืนยัน', 
+            cancelButtonText: 'ยกเลิก' 
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    const formData = new FormData();
+                    formData.append('docno', docno);
+                    formData.append('cd_code', cdcode);
+                    formData.append('new_status', status);
+                    if (remark) { 
+                        formData.append('remark', remark); 
+                    }
+                    const response = await fetch(API_UPDATE_STATUS, { method: 'POST', body: formData });
+                    const resData = await response.json();
+                    if (resData.success) {
+                        Swal.fire('สำเร็จ!', 'อัปเดตสถานะเรียบร้อยแล้ว', 'success');
+                        fetchItems(currentPage);
+                    } else { throw new Error(resData.message || 'ไม่สามารถอัปเดตข้อมูลได้'); }
+                } catch (error) { Swal.fire('เกิดข้อผิดพลาด!', error.message, 'error'); }
+            }
+        });
+    };
+
+    // Unlock AudioContext เมื่อผู้ใช้โต้ตอบครั้งแรก (สำหรับกรณี refresh / sessionStorage)
+    const unlockAudioOnInteraction = () => {
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+        // ลบ listener หลังจาก unlock แล้ว
+        document.removeEventListener('click', unlockAudioOnInteraction);
+        document.removeEventListener('touchstart', unlockAudioOnInteraction);
+        document.removeEventListener('keydown', unlockAudioOnInteraction);
+    };
+    document.addEventListener('click', unlockAudioOnInteraction);
+    document.addEventListener('touchstart', unlockAudioOnInteraction);
+    document.addEventListener('keydown', unlockAudioOnInteraction);
+
+    const initializeAppState = () => {
+        const savedLocation = sessionStorage.getItem('selectedLocation');
+        if (savedLocation) {
+            locationModal.style.display = 'none';
+            selectLocation(JSON.parse(savedLocation));
+        } else {
+            locationModal.style.display = 'flex';
+            mainContent.classList.add('hidden');
+            changeLocationBtn.classList.add('hidden');
+            historyButtons.classList.add('hidden');
+            locationDisplay.innerHTML = `<span class="text-gray-500">กรุณาเลือกคลังเพื่อเริ่ม</span>`;
+            fetchLocations();
+        }
+    };
+
+    // --- Event Listeners ---
+    let searchTimeout;
+    searchInput.addEventListener('keyup', () => { 
+        clearTimeout(searchTimeout); 
+        searchTimeout = setTimeout(() => { 
+            fetchItems(1); // Reset to page 1 on new search
+        }, 300); 
+    });
+
+    filterBtn.addEventListener('click', () => {
+        fetchItems(1); // Reset to page 1 on filter
+    });
+
+    clearFilterBtn.addEventListener('click', () => {
+        startDateInput.value = '';
+        endDateInput.value = '';
+        searchInput.value = ''; // Also clear search input
+        fetchItems(1); // Reset to page 1 and clear filters
+    });
+    
+    tableBody.addEventListener('click', (e) => {
+        const button = e.target.closest('.update-btn');
+        if (button) {
+            handleUpdateStatus(button);
+            return; // Prevent row click from firing
+        }
+        
+        const row = e.target.closest('.item-row');
+        if (row) {
+            showItemDetailsModal(row.dataset);
+        }
+    });
+
+    document.getElementById('soundToggleBtn').addEventListener('click', () => {
+        soundEnabled = !soundEnabled;
+        localStorage.setItem('soundEnabled', soundEnabled);
+        updateSoundToggleUI();
+    });
+
+    changeLocationBtn.addEventListener('click', () => {
+        if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+        previousPendingCount = null;
+        notificationSoundUrl = null;
+        sessionStorage.removeItem('selectedLocation');
+        initializeAppState();
+    });
+
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted) {
+            initializeAppState();
+        }
+    });
+
+    closeDetailsModal.addEventListener('click', () => {
+        detailsModal.classList.add('hidden');
+    });
+
+    detailsModal.addEventListener('click', (e) => {
+        if (e.target.id === 'detailsModal') {
+            detailsModal.classList.add('hidden');
+        }
+    });
+
+    // --- Initial Load ---
+    initializeAppState();
+});
+</script>
+
+</body>
+</html>
