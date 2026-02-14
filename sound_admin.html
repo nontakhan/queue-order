@@ -109,18 +109,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentAudio = null;
 
-    // โหลดรายการคลังสินค้า
+    // โหลดรายการคลังสินค้า (กรองเฉพาะที่ยังไม่มีเสียง)
     const loadLocations = async () => {
         try {
-            const response = await fetch(API_GET_LOCATIONS);
-            const result = await response.json();
-            if (result.success && result.data.length > 0) {
-                result.data.forEach(loc => {
-                    const option = document.createElement('option');
-                    option.value = loc.location_code;
-                    option.textContent = `${loc.location_code} - ${loc.location}`;
-                    locationSelect.appendChild(option);
+            // โหลดทั้ง locations และ sounds
+            const [locationsResponse, soundsResponse] = await Promise.all([
+                fetch(API_GET_LOCATIONS),
+                fetch(API_GET_SOUNDS)
+            ]);
+            
+            const locationsResult = await locationsResponse.json();
+            const soundsResult = await soundsResponse.json();
+            
+            // สร้าง set ของ location_codes ที่มีเสียงแล้ว
+            const soundLocations = new Set();
+            if (soundsResult.success && soundsResult.data.length > 0) {
+                soundsResult.data.forEach(sound => {
+                    soundLocations.add(sound.location_code);
                 });
+            }
+            
+            // เพิ่มเฉพาะ locations ที่ยังไม่มีเสียง
+            if (locationsResult.success && locationsResult.data.length > 0) {
+                const availableLocations = locationsResult.data.filter(loc => !soundLocations.has(loc.location_code));
+                
+                if (availableLocations.length > 0) {
+                    availableLocations.forEach(loc => {
+                        const option = document.createElement('option');
+                        option.value = loc.location_code;
+                        option.textContent = `${loc.location_code} - ${loc.location}`;
+                        locationSelect.appendChild(option);
+                    });
+                } else {
+                    // ถ้าทุกคลังมีเสียงแล้ว
+                    const option = document.createElement('option');
+                    option.value = "";
+                    option.textContent = "-- ทุกคลังมีเสียงแล้ว --";
+                    option.disabled = true;
+                    locationSelect.appendChild(option);
+                }
             }
         } catch (error) {
             console.error('Error loading locations:', error);
@@ -207,6 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 Swal.fire('สำเร็จ!', 'อัปโหลดเสียงแจ้งเตือนเรียบร้อยแล้ว', 'success');
                 soundFile.value = '';
                 loadSounds();
+                loadLocations(); // รีโหลด dropdown เพื่อเอาคลังที่เพิ่มเสียงออก
             } else {
                 throw new Error(result.message);
             }
@@ -257,6 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (result.success) {
                         Swal.fire('ลบสำเร็จ!', result.message, 'success');
                         loadSounds();
+                        loadLocations(); // รีโหลด dropdown เพื่อเพิ่มคลังที่ลบเสียงกลับมา
                     } else {
                         throw new Error(result.message);
                     }
