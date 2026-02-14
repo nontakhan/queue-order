@@ -84,7 +84,7 @@ try {
                        cd_name, qty, Lname_unit AS unit, REMARK, UNITPRICE, branch, shipflag,
                        delivery_status, delivery_remark, last_update
                        FROM transfer_data_from_mssql " . $whereSql . " 
-                       ORDER BY docdate DESC, docno DESC
+                       ORDER BY last_update DESC, docdate DESC, docno DESC
                        LIMIT {$limit} OFFSET {$offset}";
         
         $debug_info['data_sql'] = $data_sql;
