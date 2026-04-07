@@ -7,6 +7,7 @@
     <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="icon" href="icon.svg" type="image/svg+xml">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -72,6 +73,7 @@
                             <th class="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">หน่วย</th>
                             <th class="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">สถานะ</th>
                             <th class="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">อัปเดตล่าสุด</th>
+                            <th class="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-center">จัดการ</th>
                         </tr>
                     </thead>
                     <tbody id="itemsTableBody" class="divide-y divide-gray-200"></tbody>
@@ -85,6 +87,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const API_FETCH_ITEMS = './api/fetch_items.php';
+    const API_DELETE_ITEM = './api/delete_item.php';
     const REPORT_CUSTOMER_KEYWORD = 'นำรุ่งเคหะภัณฑ์สำนักงานใหญ่';
     const ITEMS_PER_PAGE = 20;
 
@@ -185,6 +188,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.unit || ''}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${statusText}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lastUpdate}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
+                    <button class="delete-btn bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-semibold hover:bg-red-600 transition" data-docno="${item.docno || ''}" data-cdcode="${item.cd_code || ''}">ลบ</button>
+                </td>
             `;
             tableBody.appendChild(row);
         });
@@ -243,6 +249,53 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    const handleDeleteItem = async (button) => {
+        const { docno, cdcode } = button.dataset;
+        const result = await Swal.fire({
+            title: 'ยืนยันการลบ?',
+            text: `ต้องการลบ DocNo: ${docno} ใช่หรือไม่?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'ใช่, ลบรายการ',
+            cancelButtonText: 'ยกเลิก'
+        });
+
+        if (!result.isConfirmed) {
+            return;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('docno', docno);
+            formData.append('cd_code', cdcode);
+
+            const response = await fetch(API_DELETE_ITEM, {
+                method: 'POST',
+                body: formData
+            });
+            const resData = await response.json();
+
+            if (!response.ok || !resData.success) {
+                throw new Error(resData.message || 'ไม่สามารถลบข้อมูลได้');
+            }
+
+            filteredItemsCache = filteredItemsCache.filter(item => !(item.docno === docno && item.cd_code === cdcode));
+
+            if (filteredItemsCache.length === 0) {
+                showNoData('ไม่พบข้อมูลของลูกค้ารายนี้ตามเงื่อนไขที่กำหนด');
+            } else {
+                const totalPages = Math.ceil(filteredItemsCache.length / ITEMS_PER_PAGE);
+                renderCurrentPage(Math.min(currentPage, totalPages));
+            }
+
+            await Swal.fire('สำเร็จ!', 'ลบรายการเรียบร้อยแล้ว', 'success');
+        } catch (error) {
+            await Swal.fire('เกิดข้อผิดพลาด', error.message || 'ไม่สามารถลบข้อมูลได้', 'error');
+        }
+    };
+
     let searchTimeout;
     searchInput.addEventListener('keyup', () => {
         clearTimeout(searchTimeout);
@@ -255,6 +308,13 @@ document.addEventListener('DOMContentLoaded', () => {
         startDateInput.value = '';
         endDateInput.value = '';
         fetchItems(1);
+    });
+
+    tableBody.addEventListener('click', (event) => {
+        const deleteButton = event.target.closest('.delete-btn');
+        if (deleteButton) {
+            handleDeleteItem(deleteButton);
+        }
     });
 
     fetchItems();
