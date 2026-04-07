@@ -20,13 +20,19 @@ $conn->set_charset("utf8");
 
 // --- รับค่า Parameters ---
 $page = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
-$limit = 15;
+$limit = isset($_GET['limit']) && is_numeric($_GET['limit']) ? max(1, min((int)$_GET['limit'], 5000)) : 15;
 $offset = ($page - 1) * $limit;
 $searchTerm = isset($_GET['search']) ? trim($_GET['search']) : '';
 $locationCode = isset($_GET['location']) ? trim($_GET['location']) : '';
 $status = isset($_GET['status']) ? trim($_GET['status']) : '';
+$customerName = isset($_GET['customer_name']) ? trim($_GET['customer_name']) : '';
+$customerKeyword = isset($_GET['customer_keyword']) ? trim($_GET['customer_keyword']) : '';
+$includeExcludedCustomer = isset($_GET['include_excluded_customer']) && $_GET['include_excluded_customer'] === '1';
+$includeAllStatus = isset($_GET['include_all_status']) && $_GET['include_all_status'] === '1';
 $startDate = isset($_GET['startDate']) ? trim($_GET['startDate']) : '';
 $endDate = isset($_GET['endDate']) ? trim($_GET['endDate']) : '';
+$excludedCustomerKeyword = 'นำรุ่งเคหะภัณฑ์สำนักงานใหญ่';
+$normalizedCustomerExpr = "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(TRIM(custname), ' ', ''), '(', ''), ')', ''), '　', ''), '.', ''), CHAR(9), ''), CHAR(10), ''), CHAR(13), '')";
 
 $items = [];
 $error = null;
@@ -38,16 +44,30 @@ try {
     // --- สร้างเงื่อนไข WHERE ---
     $whereClauses = [];
     
-    if (!empty($status)) {
+    if (!$includeAllStatus && !empty($status)) {
         $escapedStatus = $conn->real_escape_string($status);
         $whereClauses[] = "delivery_status = '{$escapedStatus}'";
-    } else {
+    } else if (!$includeAllStatus) {
         $whereClauses[] = "(delivery_status IS NULL OR delivery_status = '')";
     }
 
     if (!empty($locationCode)) {
         $escapedLocation = $conn->real_escape_string($locationCode);
         $whereClauses[] = "TRIM(location_code) = '{$escapedLocation}'";
+    }
+
+    if (!empty($customerName)) {
+        $escapedCustomerName = $conn->real_escape_string($customerName);
+        $normalizedCustomerName = preg_replace('/[()\s]+/u', '', $escapedCustomerName);
+        $whereClauses[] = "{$normalizedCustomerExpr} = '{$normalizedCustomerName}'";
+    } else if (!empty($customerKeyword)) {
+        $escapedCustomerKeyword = $conn->real_escape_string($customerKeyword);
+        $normalizedCustomerKeyword = preg_replace('/[()\s]+/u', '', $escapedCustomerKeyword);
+        $whereClauses[] = "{$normalizedCustomerExpr} LIKE '%{$normalizedCustomerKeyword}%'";
+    } else if (!$includeExcludedCustomer) {
+        $escapedExcludedCustomerKeyword = $conn->real_escape_string($excludedCustomerKeyword);
+        $normalizedExcludedCustomerKeyword = preg_replace('/[()\s]+/u', '', $escapedExcludedCustomerKeyword);
+        $whereClauses[] = "(custname IS NULL OR {$normalizedCustomerExpr} NOT LIKE '%{$normalizedExcludedCustomerKeyword}%')";
     }
 
     if (!empty($searchTerm)) {
@@ -67,7 +87,7 @@ try {
         $whereClauses[] = "docdate <= '{$escapedEndDate}'";
     }
     
-    $whereSql = "WHERE " . implode(' AND ', $whereClauses);
+    $whereSql = count($whereClauses) > 0 ? "WHERE " . implode(' AND ', $whereClauses) : "";
     $debug_info['final_where_clause'] = $whereSql;
 
     $count_sql = "SELECT COUNT(*) as total FROM transfer_data_from_mssql " . $whereSql;
@@ -82,6 +102,7 @@ try {
         // --- FIX: Added 'shipflag' to the SELECT statement ---
         $data_sql = "SELECT docno, docdate, custname AS customer_name, cd_code, 
                        cd_name, qty, Lname_unit AS unit, REMARK, UNITPRICE, branch, shipflag,
+                       location_code, location,
                        delivery_status, delivery_remark, last_update
                        FROM transfer_data_from_mssql " . $whereSql . " 
                        ORDER BY last_update DESC, docdate DESC, docno DESC

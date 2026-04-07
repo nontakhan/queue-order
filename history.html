@@ -124,6 +124,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedStatus = null;
     let locationName = '';
     let currentPage = 1;
+    const EXCLUDED_CUSTOMER_KEYWORD = 'นำรุ่งเคหะภัณฑ์สำนักงานใหญ่';
+
+    const normalizeCustomerName = (value = '') => value
+        .replace(/[\s().]/g, '')
+        .replace(/　/g, '')
+        .trim();
+
+    const isExcludedCustomer = (value = '') => normalizeCustomerName(value).includes(EXCLUDED_CUSTOMER_KEYWORD);
 
     const getUrlParams = () => {
         const params = new URLSearchParams(window.location.search);
@@ -173,9 +181,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(apiUrl);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const result = await response.json();
-            if (result.success && result.data.length > 0) {
-                renderTable(result.data);
-                renderPagination(result.pagination);
+            const filteredItems = result.success ? result.data.filter(item => !isExcludedCustomer(item.customer_name || '')) : [];
+            if (result.success && filteredItems.length > 0) {
+                renderTable(filteredItems);
+                renderPagination({ ...result.pagination, total_items: filteredItems.length, total_pages: filteredItems.length > 0 ? Math.ceil(filteredItems.length / result.pagination.items_per_page) : 0 });
             } else {
                 showNoData(searchTerm || startDate || endDate ? `ไม่พบรายการตามเงื่อนไขที่กำหนด` : `ไม่มีรายการสถานะ "${selectedStatus}" ในคลังนี้`);
             }

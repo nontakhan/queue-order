@@ -27,15 +27,19 @@ if (empty($locationCode)) {
 }
 
 $lastKnownCount = isset($_GET['last_count']) ? (int)$_GET['last_count'] : -1;
+$excludedCustomerKeyword = 'นำรุ่งเคหะภัณฑ์สำนักงานใหญ่';
+$normalizedCustomerExpr = "REPLACE(REPLACE(REPLACE(REPLACE(TRIM(custname), ' ', ''), '(', ''), ')', ''), '　', '')";
 
 try {
     $escapedLoc = $conn->real_escape_string($locationCode);
+    $escapedExcludedCustomerKeyword = $conn->real_escape_string($excludedCustomerKeyword);
     
     // นับจำนวนรายการที่รอตรวจรับ (delivery_status เป็น NULL หรือว่าง)
     $sql = "SELECT COUNT(*) as total_pending 
             FROM transfer_data_from_mssql 
             WHERE TRIM(location_code) = '{$escapedLoc}' 
-            AND (delivery_status IS NULL OR delivery_status = '')";
+            AND (delivery_status IS NULL OR delivery_status = '')
+            AND (custname IS NULL OR {$normalizedCustomerExpr} NOT LIKE '%{$escapedExcludedCustomerKeyword}%')";
     
     $result = $conn->query($sql);
     if ($result === false) {
@@ -54,6 +58,7 @@ try {
                    FROM transfer_data_from_mssql 
                    WHERE TRIM(location_code) = '{$escapedLoc}' 
                    AND (delivery_status IS NULL OR delivery_status = '')
+                   AND (custname IS NULL OR {$normalizedCustomerExpr} NOT LIKE '%{$escapedExcludedCustomerKeyword}%')
                    ORDER BY last_update DESC, docdate DESC
                    LIMIT {$limitItems}";
         $newResult = $conn->query($sqlNew);

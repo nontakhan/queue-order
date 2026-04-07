@@ -21,13 +21,17 @@ $conn->set_charset("utf8");
 
 $locations = [];
 $error = null;
+$excludedCustomerKeyword = 'นำรุ่งเคหะภัณฑ์สำนักงานใหญ่';
+$normalizedCustomerExpr = "REPLACE(REPLACE(REPLACE(REPLACE(TRIM(custname), ' ', ''), '(', ''), ')', ''), '　', '')";
 
 try {
+    $escapedExcludedCustomerKeyword = $conn->real_escape_string($excludedCustomerKeyword);
     // **แก้ไข Query ให้ดึงมาทั้ง location_code และ location (ชื่อเต็ม)**
     // ใช้ GROUP BY เพื่อให้ได้ข้อมูลที่ไม่ซ้ำกัน
     $sql = "SELECT location_code, location 
             FROM transfer_data_from_mssql 
             WHERE location_code IS NOT NULL AND location_code != '' AND location IS NOT NULL AND location != ''
+            AND (custname IS NULL OR {$normalizedCustomerExpr} NOT LIKE '%{$escapedExcludedCustomerKeyword}%')
             GROUP BY location_code, location
             ORDER BY location_code ASC";
             
