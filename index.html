@@ -95,7 +95,7 @@
                         รายงาน
                     </a>
                     <button id="soundToggleBtn" class="px-4 py-2 rounded-lg text-sm font-semibold transition hidden" title="เปิด/ปิดเสียงแจ้งเตือน"></button>
-                    <a href="sound_admin.html" id="soundAdminLink" class="bg-purple-100 text-purple-800 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-purple-200 transition hidden flex items-center"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>ตั้งค่าเสียง</a>
+                    <a href="admin.html#sound-settings" id="soundAdminLink" class="bg-purple-100 text-purple-800 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-purple-200 transition hidden flex items-center"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>ตั้งค่าเสียง</a>
                     <button id="changeLocationBtn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-300 transition hidden">เปลี่ยนคลัง</button>
                 </div>
             </div>
@@ -180,6 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_GET_DETAILS = './api/get_item_details.php';
     const API_CHECK_NEW = './api/check_new_items.php';
     const API_GET_SOUNDS = './api/get_sounds.php';
+    const API_AUTH_ME = './api/auth_me.php';
     
     let selectedLocationInfo = null;
     let currentPage = 1;
@@ -190,6 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let soundEnabled = localStorage.getItem('soundEnabled') !== 'false';
     let audioContext = null;
     let locationSoundMap = {};
+    let currentUser = null;
     const EXCLUDED_CUSTOMER_KEYWORD = 'นำรุ่งเคหะภัณฑ์สำนักงานใหญ่';
 
     const normalizeCustomerName = (value = '') => value
@@ -199,19 +201,190 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const isExcludedCustomer = (value = '') => normalizeCustomerName(value).includes(EXCLUDED_CUSTOMER_KEYWORD);
 
+    const organizeHeaderControls = () => {
+        const controlsRoot = document.getElementById('historyButtons')?.parentElement;
+        if (!controlsRoot || controlsRoot.dataset.grouped === '1') {
+            return;
+        }
+
+        controlsRoot.dataset.grouped = '1';
+        controlsRoot.className = 'flex w-full flex-col gap-3 lg:w-auto lg:items-end';
+
+        const historyGroup = document.createElement('div');
+        historyGroup.className = 'flex flex-col gap-2 rounded-2xl bg-white/90 p-3 shadow-sm ring-1 ring-gray-200';
+        const historyTitle = document.createElement('div');
+        historyTitle.className = 'px-1 text-xs font-semibold uppercase tracking-wider text-gray-500';
+        historyTitle.textContent = 'ประวัติสถานะ';
+
+        const utilityGroup = document.createElement('div');
+        utilityGroup.className = 'flex flex-col gap-2 rounded-2xl bg-white/90 p-3 shadow-sm ring-1 ring-gray-200';
+        const utilityTitle = document.createElement('div');
+        utilityTitle.className = 'px-1 text-xs font-semibold uppercase tracking-wider text-gray-500';
+        utilityTitle.textContent = 'เครื่องมือ';
+
+        const historyRow = document.createElement('div');
+        historyRow.className = 'flex flex-nowrap gap-3 overflow-x-auto pb-1';
+        const utilityRow = document.createElement('div');
+        utilityRow.className = 'flex flex-wrap gap-3';
+
+        const historyButtonsEl = document.getElementById('historyButtons');
+        historyButtonsEl.className = 'hidden flex flex-nowrap gap-3';
+
+        controlsRoot.insertBefore(historyGroup, historyButtonsEl);
+        historyGroup.appendChild(historyTitle);
+        historyGroup.appendChild(historyRow);
+        historyRow.appendChild(historyButtonsEl);
+
+        ['reportsLink', 'adminEntryLink', 'soundToggleBtn', 'changeLocationBtn'].forEach((id) => {
+            const element = document.getElementById(id);
+            if (!element) return;
+
+            if (id === 'soundToggleBtn') {
+                element.classList.add('rounded-xl');
+            }
+            if (id === 'changeLocationBtn') {
+                element.classList.add('rounded-xl');
+            }
+            if (id === 'reportsLink') {
+                element.classList.remove('rounded-lg');
+                element.classList.add('rounded-xl');
+            }
+
+            utilityRow.appendChild(element);
+        });
+
+        utilityGroup.appendChild(utilityTitle);
+        utilityGroup.appendChild(utilityRow);
+        controlsRoot.appendChild(utilityGroup);
+    };
+
+    const loadCurrentUser = async () => {
+        const response = await fetch(API_AUTH_ME, { credentials: 'same-origin' });
+        const result = await response.json();
+        currentUser = result.authenticated ? result.user : null;
+
+        if (!document.getElementById('adminEntryLink')) {
+            const adminLink = document.createElement('a');
+            adminLink.id = 'adminEntryLink';
+            adminLink.className = 'rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-200';
+            const reportsLink = document.getElementById('reportsLink');
+            reportsLink.insertAdjacentElement('afterend', adminLink);
+        }
+
+        const adminEntryLink = document.getElementById('adminEntryLink');
+        if (currentUser && currentUser.role === 'admin') {
+            adminEntryLink.href = 'admin.html';
+            adminEntryLink.textContent = 'หน้าจัดการ';
+        } else {
+            adminEntryLink.href = 'login.html';
+            adminEntryLink.textContent = 'Admin';
+        }
+
+        adminEntryLink.className = 'rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-200';
+
+        const utilityRow = document.querySelector('[data-grouped="1"] > div:last-child > div:last-child');
+        if (utilityRow && adminEntryLink.parentElement !== utilityRow) {
+            utilityRow.insertBefore(adminEntryLink, document.getElementById('soundToggleBtn'));
+        }
+    };
+
     // --- ฟังก์ชันต่างๆ ---
+    const LOCATION_BUTTON_COLORS = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-red-500', 'bg-yellow-500', 'bg-indigo-500'];
+
+    const buildLocationButton = (loc, index) => {
+        const colorClass = LOCATION_BUTTON_COLORS[index % LOCATION_BUTTON_COLORS.length];
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `${colorClass} text-white rounded-lg shadow-md hover:opacity-90 transition-opacity flex flex-col items-center justify-center p-3`;
+        button.dataset.location = loc.location_code;
+        button.dataset.locationName = loc.location;
+
+        const codeSpan = document.createElement('span');
+        codeSpan.className = 'text-xl font-bold';
+        codeSpan.textContent = loc.location_code;
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'text-xs mt-1 font-normal';
+        nameSpan.textContent = loc.location;
+
+        button.appendChild(codeSpan);
+        button.appendChild(nameSpan);
+        button.addEventListener('click', () => selectLocation(loc));
+
+        return button;
+    };
+
+    const updateLocationSoundBadges = () => {
+        locationButtons.querySelectorAll('button[data-location]').forEach((button) => {
+            const existingBadge = button.querySelector('[data-sound-badge]');
+            const hasSound = Boolean(locationSoundMap[button.dataset.location]);
+
+            if (hasSound && !existingBadge) {
+                const soundBadge = document.createElement('span');
+                soundBadge.dataset.soundBadge = '1';
+                soundBadge.className = 'mt-1 flex items-center rounded-full bg-white bg-opacity-30 px-2 py-0.5 text-xs';
+                soundBadge.textContent = '🔔 มีเสียง';
+                button.appendChild(soundBadge);
+            }
+
+            if (!hasSound && existingBadge) {
+                existingBadge.remove();
+            }
+        });
+    };
+
+    const renderLocationButtons = (locations) => {
+        locationButtons.innerHTML = '';
+        locations.forEach((loc, index) => {
+            locationButtons.appendChild(buildLocationButton(loc, index));
+        });
+        updateLocationSoundBadges();
+    };
+
     // โหลดรายการคลังที่มีเสียงตั้งค่าแล้ว
     const loadLocationSoundMap = async () => {
         try {
             const response = await fetch(API_GET_SOUNDS);
             const result = await response.json();
+            locationSoundMap = {};
+
             if (result.success && result.data.length > 0) {
-                result.data.forEach(s => { locationSoundMap[s.location_code] = s.original_name || s.sound_file; });
+                result.data.forEach((sound) => {
+                    locationSoundMap[sound.location_code] = sound.original_name || sound.sound_file;
+                });
             }
-        } catch (e) { console.error('Error loading sound map:', e); }
+
+            updateLocationSoundBadges();
+        } catch (error) {
+            console.error('Error loading sound map:', error);
+        }
     };
 
-    const fetchLocations = async () => { locationLoader.classList.remove('hidden'); locationButtons.innerHTML = ''; try { await loadLocationSoundMap(); const response = await fetch(API_GET_LOCATIONS); if (!response.ok) throw new Error(`Server error: ${response.status}`); const result = await response.json(); if (result.success && result.data.length > 0) { const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-red-500', 'bg-yellow-500', 'bg-indigo-500']; result.data.forEach((loc, index) => { const colorClass = colors[index % colors.length]; const button = document.createElement('button'); button.className = `${colorClass} text-white rounded-lg shadow-md hover:opacity-90 transition-opacity flex flex-col items-center justify-center p-3`; const codeSpan = document.createElement('span'); codeSpan.className = 'text-xl font-bold'; codeSpan.textContent = loc.location_code; const nameSpan = document.createElement('span'); nameSpan.className = 'text-xs mt-1 font-normal'; nameSpan.textContent = loc.location; button.appendChild(codeSpan); button.appendChild(nameSpan); if (locationSoundMap[loc.location_code]) { const soundBadge = document.createElement('span'); soundBadge.className = 'text-xs mt-1 bg-white bg-opacity-30 rounded-full px-2 py-0.5 flex items-center'; soundBadge.innerHTML = '🔔 มีเสียง'; button.appendChild(soundBadge); } button.dataset.location = loc.location_code; button.addEventListener('click', () => selectLocation(loc)); locationButtons.appendChild(button); }); } else { locationButtons.innerHTML = `<p class="col-span-full text-center text-red-500">ไม่พบข้อมูลคลังสินค้า</p>`; } } catch (error) { console.error('Error fetching locations:', error); locationButtons.innerHTML = `<p class="col-span-full text-center text-red-500">เกิดข้อผิดพลาด: ${error.message}</p>`; } finally { locationLoader.classList.add('hidden'); } };
+    const fetchLocations = async () => {
+        locationLoader.classList.remove('hidden');
+        locationButtons.innerHTML = '';
+        locationSoundMap = {};
+
+        try {
+            const response = await fetch(API_GET_LOCATIONS);
+            if (!response.ok) throw new Error(`Server error: ${response.status}`);
+
+            const result = await response.json();
+            if (result.success && result.data.length > 0) {
+                renderLocationButtons(result.data);
+                locationLoader.classList.add('hidden');
+                loadLocationSoundMap();
+                return;
+            }
+
+            locationButtons.innerHTML = `<p class="col-span-full text-center text-red-500">ไม่พบข้อมูลคลังสินค้า</p>`;
+        } catch (error) {
+            console.error('Error fetching locations:', error);
+            locationButtons.innerHTML = `<p class="col-span-full text-center text-red-500">เกิดข้อผิดพลาด: ${error.message}</p>`;
+        } finally {
+            locationLoader.classList.add('hidden');
+        }
+    };
 
     const selectLocation = async (locationObject) => {
         selectedLocationInfo = locationObject;
@@ -241,7 +414,6 @@ document.addEventListener('DOMContentLoaded', () => {
         await initPendingCount(locationObject.location_code);
 
         document.getElementById('soundToggleBtn').classList.remove('hidden');
-        document.getElementById('soundAdminLink').classList.remove('hidden');
         updateSoundToggleUI();
 
         // เริ่ม auto-refresh ทันที
@@ -742,7 +914,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Initial Load ---
-    initializeAppState();
+    organizeHeaderControls();
+    loadCurrentUser().catch(console.error).finally(() => {
+        initializeAppState();
+    });
 });
 </script>
 

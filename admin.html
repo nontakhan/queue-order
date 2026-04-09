@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Queue Order</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-100">
+    <div class="mx-auto max-w-7xl p-4 sm:p-6 md:p-8">
+        <header class="mb-8 flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800">Admin Panel</h1>
+                <p class="text-gray-600">จัดการคลังสินค้า ผู้ใช้งาน และเสียงแจ้งเตือนจากหน้าเดียว</p>
+            </div>
+            <div class="flex gap-3">
+                <a href="index.html" class="rounded-xl bg-gray-200 px-4 py-2 font-semibold text-gray-800 transition hover:bg-gray-300">กลับหน้าหลัก</a>
+                <button id="logoutBtn" type="button" class="rounded-xl bg-red-100 px-4 py-2 font-semibold text-red-700 transition hover:bg-red-200">ออกจากระบบ</button>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <section class="rounded-2xl bg-white p-6 shadow-sm">
+                <div class="mb-4 flex items-center justify-between">
+                    <h2 class="text-xl font-bold text-gray-800">จัดการคลัง</h2>
+                    <button id="resetLocationFormBtn" type="button" class="text-sm font-medium text-blue-600 hover:text-blue-700">ฟอร์มใหม่</button>
+                </div>
+
+                <form id="locationForm" class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <input id="locationId" name="id" type="hidden">
+                    <div>
+                        <label for="locationCode" class="mb-1 block text-sm font-medium text-gray-700">รหัสคลัง</label>
+                        <input id="locationCode" name="location_code" type="text" required class="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="locationName" class="mb-1 block text-sm font-medium text-gray-700">ชื่อคลัง</label>
+                        <input id="locationName" name="location_name" type="text" required class="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="locationStatus" class="mb-1 block text-sm font-medium text-gray-700">สถานะ</label>
+                        <select id="locationStatus" name="is_active" class="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="1">เปิดใช้งาน</option>
+                            <option value="0">ปิดใช้งาน</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end">
+                        <button type="submit" class="rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700">บันทึกคลัง</button>
+                    </div>
+                </form>
+
+                <div class="mt-6 overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-xs uppercase text-gray-500">รหัสคลัง</th>
+                                <th class="px-4 py-3 text-xs uppercase text-gray-500">ชื่อคลัง</th>
+                                <th class="px-4 py-3 text-xs uppercase text-gray-500">สถานะ</th>
+                                <th class="px-4 py-3 text-center text-xs uppercase text-gray-500">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="locationsTableBody" class="divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="rounded-2xl bg-white p-6 shadow-sm">
+                <div class="mb-4 flex items-center justify-between">
+                    <h2 class="text-xl font-bold text-gray-800">จัดการผู้ใช้</h2>
+                    <button id="resetUserFormBtn" type="button" class="text-sm font-medium text-green-600 hover:text-green-700">ฟอร์มใหม่</button>
+                </div>
+
+                <form id="userForm" class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <input id="userId" name="id" type="hidden">
+                    <div>
+                        <label for="username" class="mb-1 block text-sm font-medium text-gray-700">ชื่อผู้ใช้</label>
+                        <input id="username" name="username" type="text" required class="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500">
+                    </div>
+                    <div>
+                        <label for="fullName" class="mb-1 block text-sm font-medium text-gray-700">ชื่อแสดงผล</label>
+                        <input id="fullName" name="full_name" type="text" required class="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500">
+                    </div>
+                    <div>
+                        <label for="password" class="mb-1 block text-sm font-medium text-gray-700">รหัสผ่าน</label>
+                        <input id="password" name="password" type="password" class="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="เว้นว่างถ้าไม่ต้องการเปลี่ยน">
+                    </div>
+                    <div>
+                        <label for="role" class="mb-1 block text-sm font-medium text-gray-700">บทบาท</label>
+                        <select id="role" name="role" class="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500">
+                            <option value="user">user</option>
+                            <option value="admin">admin</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="defaultLocationCode" class="mb-1 block text-sm font-medium text-gray-700">คลังเริ่มต้น</label>
+                        <select id="defaultLocationCode" name="default_location_code" class="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500">
+                            <option value="">เลือกได้ทุกคลัง</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="userStatus" class="mb-1 block text-sm font-medium text-gray-700">สถานะ</label>
+                        <select id="userStatus" name="is_active" class="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500">
+                            <option value="1">เปิดใช้งาน</option>
+                            <option value="0">ปิดใช้งาน</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <button type="submit" class="rounded-xl bg-green-600 px-5 py-3 font-semibold text-white transition hover:bg-green-700">บันทึกผู้ใช้</button>
+                    </div>
+                </form>
+
+                <div class="mt-6 overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-xs uppercase text-gray-500">ชื่อผู้ใช้</th>
+                                <th class="px-4 py-3 text-xs uppercase text-gray-500">ชื่อแสดงผล</th>
+                                <th class="px-4 py-3 text-xs uppercase text-gray-500">บทบาท</th>
+                                <th class="px-4 py-3 text-xs uppercase text-gray-500">คลังเริ่มต้น</th>
+                                <th class="px-4 py-3 text-center text-xs uppercase text-gray-500">สถานะ</th>
+                                <th class="px-4 py-3 text-center text-xs uppercase text-gray-500">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody" class="divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <section id="sound-settings" class="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+            <div class="mb-4">
+                <h2 class="text-xl font-bold text-gray-800">ตั้งค่าเสียงแจ้งเตือน</h2>
+                <p class="text-sm text-gray-500">เพิ่มหรือเปลี่ยนไฟล์เสียงตามคลัง และทดสอบหรือลบได้จากตารางด้านล่าง</p>
+            </div>
+
+            <form id="uploadSoundForm" class="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr,1fr,auto] lg:items-end">
+                <div>
+                    <label for="soundLocationCode" class="mb-1 block text-sm font-medium text-gray-700">เลือกคลัง</label>
+                    <select id="soundLocationCode" class="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                        <option value="">เลือกคลังสินค้า</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="soundFile" class="mb-1 block text-sm font-medium text-gray-700">ไฟล์เสียง</label>
+                    <input id="soundFile" type="file" accept=".mp3,.wav,.ogg" class="w-full rounded-xl border border-gray-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 file:mr-4 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100">
+                </div>
+                <button id="uploadSoundBtn" type="submit" class="rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white transition hover:bg-emerald-700">บันทึกเสียง</button>
+            </form>
+
+            <div class="mt-6 overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-xs uppercase text-gray-500">คลัง</th>
+                            <th class="px-4 py-3 text-xs uppercase text-gray-500">ชื่อไฟล์</th>
+                            <th class="px-4 py-3 text-xs uppercase text-gray-500">อัปเดตล่าสุด</th>
+                            <th class="px-4 py-3 text-center text-xs uppercase text-gray-500">ทดสอบ</th>
+                            <th class="px-4 py-3 text-center text-xs uppercase text-gray-500">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="soundsTableBody" class="divide-y divide-gray-200"></tbody>
+                </table>
+                <div id="soundsTableStatus" class="py-6 text-center text-gray-500"></div>
+            </div>
+        </section>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    const endpoints = {
+        me: './api/auth_me.php',
+        logout: './api/auth_logout.php',
+        locations: './api/admin_get_locations.php',
+        saveLocation: './api/admin_save_location.php',
+        deleteLocation: './api/admin_delete_location.php',
+        users: './api/admin_get_users.php',
+        saveUser: './api/admin_save_user.php',
+        sounds: './api/get_sounds.php',
+        uploadSound: './api/upload_sound.php',
+        deleteSound: './api/delete_sound.php'
+    };
+
+    const locationForm = document.getElementById('locationForm');
+    const userForm = document.getElementById('userForm');
+    const uploadSoundForm = document.getElementById('uploadSoundForm');
+    const locationsTableBody = document.getElementById('locationsTableBody');
+    const usersTableBody = document.getElementById('usersTableBody');
+    const soundsTableBody = document.getElementById('soundsTableBody');
+    const soundsTableStatus = document.getElementById('soundsTableStatus');
+    const defaultLocationCode = document.getElementById('defaultLocationCode');
+    const soundLocationCode = document.getElementById('soundLocationCode');
+    const soundFileInput = document.getElementById('soundFile');
+    const uploadSoundBtn = document.getElementById('uploadSoundBtn');
+
+    let currentAudio = null;
+
+    const resetLocationForm = () => {
+        locationForm.reset();
+        document.getElementById('locationId').value = '';
+        document.getElementById('locationStatus').value = '1';
+    };
+
+    const resetUserForm = () => {
+        userForm.reset();
+        document.getElementById('userId').value = '';
+        document.getElementById('userStatus').value = '1';
+        document.getElementById('role').value = 'user';
+        defaultLocationCode.value = '';
+    };
+
+    const resetSoundForm = () => {
+        uploadSoundForm.reset();
+        soundLocationCode.value = '';
+    };
+
+    const ensureAdmin = async () => {
+        const response = await fetch(endpoints.me, { credentials: 'same-origin' });
+        const result = await response.json();
+        if (!result.authenticated) {
+            window.location.href = 'login.html';
+            throw new Error('Unauthenticated');
+        }
+        if (!result.user || result.user.role !== 'admin') {
+            window.location.href = 'index.html';
+            throw new Error('Forbidden');
+        }
+    };
+
+    const fillLocationSelects = (locations) => {
+        defaultLocationCode.innerHTML = '<option value="">เลือกได้ทุกคลัง</option>';
+        soundLocationCode.innerHTML = '<option value="">เลือกคลังสินค้า</option>';
+
+        locations.forEach((location) => {
+            const userOption = document.createElement('option');
+            userOption.value = location.location_code;
+            userOption.textContent = `${location.location_code} - ${location.location_name}`;
+            defaultLocationCode.appendChild(userOption);
+
+            const soundOption = document.createElement('option');
+            soundOption.value = location.location_code;
+            soundOption.textContent = `${location.location_code} - ${location.location_name}`;
+            soundLocationCode.appendChild(soundOption);
+        });
+    };
+
+    const loadLocations = async () => {
+        const response = await fetch(endpoints.locations, { credentials: 'same-origin' });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || 'โหลดข้อมูลคลังไม่สำเร็จ');
+        }
+
+        locationsTableBody.innerHTML = '';
+        fillLocationSelects(result.data);
+
+        result.data.forEach((location) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="px-4 py-3 font-semibold text-gray-800">${location.location_code}</td>
+                <td class="px-4 py-3 text-gray-700">${location.location_name}</td>
+                <td class="px-4 py-3 text-gray-700">${location.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}</td>
+                <td class="px-4 py-3 text-center">
+                    <button type="button" class="edit-location mr-2 rounded-lg bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700" data-location="${encodeURIComponent(JSON.stringify(location))}">แก้ไข</button>
+                    <button type="button" class="delete-location rounded-lg bg-red-100 px-3 py-1 text-sm font-semibold text-red-700" data-id="${location.id}">ลบ</button>
+                </td>
+            `;
+            locationsTableBody.appendChild(row);
+        });
+    };
+
+    const loadUsers = async () => {
+        const response = await fetch(endpoints.users, { credentials: 'same-origin' });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || 'โหลดข้อมูลผู้ใช้ไม่สำเร็จ');
+        }
+
+        usersTableBody.innerHTML = '';
+        result.data.forEach((user) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="px-4 py-3 font-semibold text-gray-800">${user.username}</td>
+                <td class="px-4 py-3 text-gray-700">${user.full_name}</td>
+                <td class="px-4 py-3 text-gray-700">${user.role}</td>
+                <td class="px-4 py-3 text-gray-700">${user.default_location_code || '-'}</td>
+                <td class="px-4 py-3 text-center text-gray-700">${user.is_active ? 'ใช้งาน' : 'ปิด'}</td>
+                <td class="px-4 py-3 text-center">
+                    <button type="button" class="edit-user rounded-lg bg-green-100 px-3 py-1 text-sm font-semibold text-green-700" data-user="${encodeURIComponent(JSON.stringify(user))}">แก้ไข</button>
+                </td>
+            `;
+            usersTableBody.appendChild(row);
+        });
+    };
+
+    const loadSounds = async () => {
+        soundsTableBody.innerHTML = '';
+        soundsTableStatus.textContent = 'กำลังโหลดข้อมูลเสียง...';
+
+        const response = await fetch(endpoints.sounds, { credentials: 'same-origin' });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || 'โหลดข้อมูลเสียงไม่สำเร็จ');
+        }
+
+        if (!result.data.length) {
+            soundsTableStatus.textContent = 'ยังไม่มีเสียงแจ้งเตือน';
+            return;
+        }
+
+        soundsTableStatus.textContent = '';
+        result.data.forEach((sound) => {
+            const updatedAt = sound.updated_at
+                ? new Date(sound.updated_at).toLocaleString('th-TH', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }) + ' น.'
+                : '-';
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="px-4 py-3">
+                    <div class="font-semibold text-gray-800">${sound.location_code}</div>
+                    <div class="text-sm text-gray-500">${sound.location || ''}</div>
+                </td>
+                <td class="px-4 py-3 text-gray-700">${sound.original_name || sound.sound_file}</td>
+                <td class="px-4 py-3 text-gray-500">${updatedAt}</td>
+                <td class="px-4 py-3 text-center">
+                    <button type="button" class="play-sound rounded-lg bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700" data-file="${sound.sound_file}">เล่น</button>
+                </td>
+                <td class="px-4 py-3 text-center">
+                    <button type="button" class="delete-sound rounded-lg bg-red-100 px-3 py-1 text-sm font-semibold text-red-700" data-location="${sound.location_code}">ลบ</button>
+                </td>
+            `;
+            soundsTableBody.appendChild(row);
+        });
+    };
+
+    document.getElementById('resetLocationFormBtn').addEventListener('click', resetLocationForm);
+    document.getElementById('resetUserFormBtn').addEventListener('click', resetUserForm);
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+        await fetch(endpoints.logout, { method: 'POST', credentials: 'same-origin' });
+        window.location.href = 'login.html';
+    });
+
+    locationForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        try {
+            const response = await fetch(endpoints.saveLocation, {
+                method: 'POST',
+                body: new FormData(locationForm),
+                credentials: 'same-origin'
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'บันทึกคลังไม่สำเร็จ');
+            }
+
+            resetLocationForm();
+            await loadLocations();
+            await Swal.fire('สำเร็จ', 'บันทึกคลังเรียบร้อยแล้ว', 'success');
+        } catch (error) {
+            await Swal.fire('ผิดพลาด', error.message, 'error');
+        }
+    });
+
+    userForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        try {
+            const response = await fetch(endpoints.saveUser, {
+                method: 'POST',
+                body: new FormData(userForm),
+                credentials: 'same-origin'
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'บันทึกผู้ใช้ไม่สำเร็จ');
+            }
+
+            resetUserForm();
+            await loadUsers();
+            await Swal.fire('สำเร็จ', 'บันทึกผู้ใช้เรียบร้อยแล้ว', 'success');
+        } catch (error) {
+            await Swal.fire('ผิดพลาด', error.message, 'error');
+        }
+    });
+
+    uploadSoundForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        if (!soundLocationCode.value) {
+            await Swal.fire('แจ้งเตือน', 'กรุณาเลือกคลังสินค้า', 'warning');
+            return;
+        }
+
+        if (!soundFileInput.files[0]) {
+            await Swal.fire('แจ้งเตือน', 'กรุณาเลือกไฟล์เสียง', 'warning');
+            return;
+        }
+
+        const originalButtonText = uploadSoundBtn.textContent;
+        uploadSoundBtn.disabled = true;
+        uploadSoundBtn.textContent = 'กำลังบันทึก...';
+
+        try {
+            const formData = new FormData();
+            formData.append('location_code', soundLocationCode.value);
+            formData.append('sound_file', soundFileInput.files[0]);
+
+            const response = await fetch(endpoints.uploadSound, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'บันทึกเสียงไม่สำเร็จ');
+            }
+
+            resetSoundForm();
+            await loadSounds();
+            await Swal.fire('สำเร็จ', 'บันทึกเสียงแจ้งเตือนเรียบร้อยแล้ว', 'success');
+        } catch (error) {
+            await Swal.fire('ผิดพลาด', error.message, 'error');
+        } finally {
+            uploadSoundBtn.disabled = false;
+            uploadSoundBtn.textContent = originalButtonText;
+        }
+    });
+
+    locationsTableBody.addEventListener('click', async (event) => {
+        const editButton = event.target.closest('.edit-location');
+        if (editButton) {
+            const location = JSON.parse(decodeURIComponent(editButton.dataset.location));
+            document.getElementById('locationId').value = location.id;
+            document.getElementById('locationCode').value = location.location_code;
+            document.getElementById('locationName').value = location.location_name;
+            document.getElementById('locationStatus').value = String(location.is_active);
+            return;
+        }
+
+        const deleteButton = event.target.closest('.delete-location');
+        if (!deleteButton) {
+            return;
+        }
+
+        const confirmed = await Swal.fire({
+            title: 'ลบคลังนี้?',
+            text: 'การลบจะทำให้คลังนี้ไม่สามารถเลือกใช้งานได้ในหน้าหลัก',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'ลบ',
+            cancelButtonText: 'ยกเลิก'
+        });
+
+        if (!confirmed.isConfirmed) {
+            return;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('id', deleteButton.dataset.id);
+
+            const response = await fetch(endpoints.deleteLocation, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'ลบคลังไม่สำเร็จ');
+            }
+
+            await loadLocations();
+            await Swal.fire('สำเร็จ', 'ลบคลังเรียบร้อยแล้ว', 'success');
+        } catch (error) {
+            await Swal.fire('ผิดพลาด', error.message, 'error');
+        }
+    });
+
+    usersTableBody.addEventListener('click', (event) => {
+        const editButton = event.target.closest('.edit-user');
+        if (!editButton) {
+            return;
+        }
+
+        const user = JSON.parse(decodeURIComponent(editButton.dataset.user));
+        document.getElementById('userId').value = user.id;
+        document.getElementById('username').value = user.username;
+        document.getElementById('fullName').value = user.full_name;
+        document.getElementById('password').value = '';
+        document.getElementById('role').value = user.role;
+        document.getElementById('userStatus').value = String(user.is_active);
+        defaultLocationCode.value = user.default_location_code || '';
+    });
+
+    soundsTableBody.addEventListener('click', async (event) => {
+        const playButton = event.target.closest('.play-sound');
+        if (playButton) {
+            const file = playButton.dataset.file;
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+
+            currentAudio = new Audio(`./sounds/${file}`);
+            currentAudio.play().catch(async (error) => {
+                await Swal.fire('ผิดพลาด', `ไม่สามารถเล่นเสียงได้: ${error.message}`, 'error');
+            });
+            return;
+        }
+
+        const deleteButton = event.target.closest('.delete-sound');
+        if (!deleteButton) {
+            return;
+        }
+
+        const confirmed = await Swal.fire({
+            title: 'ลบเสียงแจ้งเตือนนี้?',
+            text: `ต้องการลบเสียงของคลัง ${deleteButton.dataset.location} ใช่หรือไม่`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'ลบ',
+            cancelButtonText: 'ยกเลิก'
+        });
+
+        if (!confirmed.isConfirmed) {
+            return;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('location_code', deleteButton.dataset.location);
+
+            const response = await fetch(endpoints.deleteSound, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'ลบเสียงไม่สำเร็จ');
+            }
+
+            await loadSounds();
+            await Swal.fire('สำเร็จ', 'ลบเสียงแจ้งเตือนเรียบร้อยแล้ว', 'success');
+        } catch (error) {
+            await Swal.fire('ผิดพลาด', error.message, 'error');
+        }
+    });
+
+    try {
+        await ensureAdmin();
+        await loadLocations();
+        await loadUsers();
+        await loadSounds();
+        resetLocationForm();
+        resetUserForm();
+        resetSoundForm();
+    } catch (error) {
+        if (error.message !== 'Unauthenticated' && error.message !== 'Forbidden') {
+            console.error(error);
+            Swal.fire('ผิดพลาด', error.message, 'error');
+        }
+    }
+});
+</script>
+</body>
+</html>

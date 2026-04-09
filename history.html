@@ -153,6 +153,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    const actionButtonClass = 'inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50';
+    const paginationButtonClass = 'inline-flex h-9 min-w-9 items-center justify-center rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-600 transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-green-400 disabled:cursor-not-allowed disabled:opacity-50';
     const showLoading = () => { tableBody.innerHTML = ''; paginationControls.innerHTML = ''; tableStatus.innerHTML = `<div class="flex justify-center items-center py-10"><div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div><p class="ml-4 text-gray-600">กำลังโหลด...</p></div>`; tableStatus.classList.remove('hidden'); };
     const showNoData = (message) => { tableBody.innerHTML = ''; paginationControls.innerHTML = ''; tableStatus.innerHTML = `<p class="py-10">${message}</p>`; tableStatus.classList.remove('hidden'); };
     const hideStatus = () => { tableBody.innerHTML = ''; tableStatus.classList.add('hidden'); };
@@ -184,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const filteredItems = result.success ? result.data.filter(item => !isExcludedCustomer(item.customer_name || '')) : [];
             if (result.success && filteredItems.length > 0) {
                 renderTable(filteredItems);
-                renderPagination({ ...result.pagination, total_items: filteredItems.length, total_pages: filteredItems.length > 0 ? Math.ceil(filteredItems.length / result.pagination.items_per_page) : 0 });
+                renderPagination(result.pagination);
             } else {
                 showNoData(searchTerm || startDate || endDate ? `ไม่พบรายการตามเงื่อนไขที่กำหนด` : `ไม่มีรายการสถานะ "${selectedStatus}" ในคลังนี้`);
             }
@@ -235,14 +237,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 rowHTML += `
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
                         <div class="flex items-center justify-center space-x-2">
-                            <button class="update-btn bg-green-100 text-green-800 px-3 py-1 rounded-lg text-xs font-semibold hover:bg-green-200 transition" data-docno="${item.docno}" data-cdcode="${item.cd_code}" data-status="รับแล้ว">รับสินค้า</button>
-                            <button class="update-btn bg-red-100 text-red-800 px-3 py-1 rounded-lg text-xs font-semibold hover:bg-red-200 transition" data-docno="${item.docno}" data-cdcode="${item.cd_code}" data-status="ยกเลิก">ยกเลิก</button>
+                            <button type="button" class="update-btn ${actionButtonClass} bg-green-100 text-green-800 hover:bg-green-200 focus:ring-green-300" data-docno="${item.docno}" data-cdcode="${item.cd_code}" data-status="รับแล้ว">รับสินค้า</button>
+                            <button type="button" class="update-btn ${actionButtonClass} bg-red-100 text-red-800 hover:bg-red-200 focus:ring-red-300" data-docno="${item.docno}" data-cdcode="${item.cd_code}" data-status="ยกเลิก">ยกเลิก</button>
                         </div>
                     </td>`;
             } else if (selectedStatus === 'ยกเลิก') {
                  rowHTML += `
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
-                        <button class="delete-btn bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-semibold hover:bg-red-600 transition" data-docno="${item.docno}" data-cdcode="${item.cd_code}">ลบ</button>
+                        <button type="button" class="delete-btn ${actionButtonClass} bg-red-500 text-white hover:bg-red-600 focus:ring-red-300" data-docno="${item.docno}" data-cdcode="${item.cd_code}">ลบ</button>
                     </td>`;
             }
 
@@ -316,7 +318,8 @@ document.addEventListener('DOMContentLoaded', () => {
         buttonsContainer.className = 'flex items-center space-x-2';
         const prevButton = document.createElement('button');
         prevButton.innerHTML = '&laquo;';
-        prevButton.className = 'px-3 py-1 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50';
+        prevButton.type = 'button';
+        prevButton.className = paginationButtonClass;
         if (current_page === 1) prevButton.disabled = true;
         prevButton.addEventListener('click', () => fetchItems(current_page - 1));
         buttonsContainer.appendChild(prevButton);
@@ -326,7 +329,8 @@ document.addEventListener('DOMContentLoaded', () => {
         buttonsContainer.appendChild(pageInfo);
         const nextButton = document.createElement('button');
         nextButton.innerHTML = '&raquo;';
-        nextButton.className = 'px-3 py-1 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50';
+        nextButton.type = 'button';
+        nextButton.className = paginationButtonClass;
         if (current_page >= total_pages) nextButton.disabled = true;
         nextButton.addEventListener('click', () => fetchItems(current_page + 1));
         buttonsContainer.appendChild(nextButton);

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เข้าสู่ระบบ - Queue Order</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-green-100 via-white to-blue-100">
+    <div class="min-h-screen flex items-center justify-center p-6">
+        <div class="w-full max-w-md bg-white rounded-3xl shadow-xl p-8">
+            <div class="mb-6 flex justify-start">
+                <button id="backBtn" type="button" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                    <span aria-hidden="true">&larr;</span>
+                    <span>ย้อนกลับ</span>
+                </button>
+            </div>
+
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-800">Queue Order</h1>
+                <p class="mt-2 text-gray-500">เข้าสู่ระบบเพื่อใช้งานส่วนจัดการของแอดมิน</p>
+            </div>
+
+            <form id="loginForm" class="space-y-4">
+                <div>
+                    <label for="username" class="mb-1 block text-sm font-medium text-gray-700">ชื่อผู้ใช้</label>
+                    <input id="username" name="username" type="text" class="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="username" required>
+                </div>
+                <div>
+                    <label for="password" class="mb-1 block text-sm font-medium text-gray-700">รหัสผ่าน</label>
+                    <input id="password" name="password" type="password" class="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="password" required>
+                </div>
+                <button id="loginBtn" type="submit" class="w-full rounded-xl bg-green-600 px-4 py-3 font-semibold text-white transition hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 disabled:cursor-not-allowed disabled:opacity-60">เข้าสู่ระบบ</button>
+            </form>
+
+            <div class="mt-6 rounded-2xl bg-gray-50 p-4 text-sm text-gray-600">
+                <p class="font-semibold text-gray-700">ผู้ใช้เริ่มต้น</p>
+                <p>username: <code>admin</code></p>
+                <p>password: <code>admin1234</code></p>
+                <p class="mt-2 text-xs text-gray-500">ควรเปลี่ยนรหัสผ่านหลังติดตั้งเสร็จ</p>
+            </div>
+        </div>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    const form = document.getElementById('loginForm');
+    const loginBtn = document.getElementById('loginBtn');
+    const backBtn = document.getElementById('backBtn');
+
+    backBtn.addEventListener('click', () => {
+        if (window.history.length > 1) {
+            window.history.back();
+            return;
+        }
+        window.location.href = 'index.html';
+    });
+
+    try {
+        const meResponse = await fetch('./api/auth_me.php', { credentials: 'same-origin' });
+        const meResult = await meResponse.json();
+        if (meResult.authenticated) {
+            window.location.href = 'admin.html';
+            return;
+        }
+    } catch (error) {
+        console.error(error);
+    }
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'กำลังเข้าสู่ระบบ...';
+
+        try {
+            const formData = new FormData(form);
+            const response = await fetch('./api/auth_login.php', {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            });
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'เข้าสู่ระบบไม่สำเร็จ');
+            }
+
+            window.location.href = 'admin.html';
+        } catch (error) {
+            await Swal.fire('เข้าสู่ระบบไม่สำเร็จ', error.message, 'error');
+        } finally {
+            loginBtn.disabled = false;
+            loginBtn.textContent = 'เข้าสู่ระบบ';
+        }
+    });
+});
+</script>
+</body>
+</html>

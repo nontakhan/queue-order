@@ -109,6 +109,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentPage = 1;
     let filteredItemsCache = [];
+    const actionButtonClass = 'inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50';
+    const paginationButtonClass = 'inline-flex h-9 min-w-9 items-center justify-center rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-600 transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-50';
 
     const showLoading = () => {
         tableBody.innerHTML = '';
@@ -145,7 +147,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const prevButton = document.createElement('button');
         prevButton.innerHTML = '&laquo;';
-        prevButton.className = 'px-3 py-1 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50';
+        prevButton.type = 'button';
+        prevButton.className = paginationButtonClass;
         if (current_page === 1) prevButton.disabled = true;
         prevButton.addEventListener('click', () => renderCurrentPage(current_page - 1));
         buttonsContainer.appendChild(prevButton);
@@ -157,7 +160,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const nextButton = document.createElement('button');
         nextButton.innerHTML = '&raquo;';
-        nextButton.className = 'px-3 py-1 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50';
+        nextButton.type = 'button';
+        nextButton.className = paginationButtonClass;
         if (current_page >= total_pages) nextButton.disabled = true;
         nextButton.addEventListener('click', () => renderCurrentPage(current_page + 1));
         buttonsContainer.appendChild(nextButton);
@@ -189,7 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${statusText}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lastUpdate}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
-                    <button class="delete-btn bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-semibold hover:bg-red-600 transition" data-docno="${item.docno || ''}" data-cdcode="${item.cd_code || ''}">ลบ</button>
+                    <button type="button" class="delete-btn ${actionButtonClass} bg-red-500 text-white hover:bg-red-600 focus:ring-red-300" data-docno="${item.docno || ''}" data-cdcode="${item.cd_code || ''}">ลบ</button>
                 </td>
             `;
             tableBody.appendChild(row);

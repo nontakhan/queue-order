@@ -1,46 +1,24 @@
 <?php
-// api/get_sounds.php
-// ดึงข้อมูลเสียงแจ้งเตือนทั้งหมด หรือตาม location_code
 
 ini_set('display_errors', 0);
 error_reporting(0);
 
-header("Content-Type: application/json; charset=utf-8");
-header("Access-Control-Allow-Origin: *");
+require_once __DIR__ . '/_bootstrap.php';
 
-require_once dirname(__DIR__) . '/db_config.php';
-
-$conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
-if ($conn->connect_error) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Database Connection Error']);
-    exit;
-}
-$conn->set_charset("utf8");
-
+$conn = app_db();
 $locationCode = isset($_GET['location_code']) ? trim($_GET['location_code']) : '';
 
 try {
-    if (!empty($locationCode)) {
+    if ($locationCode !== '') {
         $escapedLoc = $conn->real_escape_string($locationCode);
-        $sql = "SELECT ns.*, t.location 
+        $sql = "SELECT ns.*, al.location_name AS location
                 FROM notification_sounds ns
-                LEFT JOIN (
-                    SELECT location_code, location 
-                    FROM transfer_data_from_mssql 
-                    WHERE location_code IS NOT NULL AND location_code != '' 
-                    GROUP BY location_code, location
-                ) t ON ns.location_code = t.location_code
+                LEFT JOIN app_locations al ON ns.location_code = al.location_code
                 WHERE ns.location_code = '{$escapedLoc}'";
     } else {
-        $sql = "SELECT ns.*, t.location 
+        $sql = "SELECT ns.*, al.location_name AS location
                 FROM notification_sounds ns
-                LEFT JOIN (
-                    SELECT location_code, location 
-                    FROM transfer_data_from_mssql 
-                    WHERE location_code IS NOT NULL AND location_code != '' 
-                    GROUP BY location_code, location
-                ) t ON ns.location_code = t.location_code
+                LEFT JOIN app_locations al ON ns.location_code = al.location_code
                 ORDER BY ns.location_code ASC";
     }
 
@@ -54,11 +32,9 @@ try {
         $sounds[] = $row;
     }
 
-    echo json_encode(['success' => true, 'data' => $sounds]);
-
+    $conn->close();
+    app_json_response(['success' => true, 'data' => $sounds]);
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    $conn->close();
+    app_json_response(['success' => false, 'message' => $e->getMessage()], 500);
 }
-
-$conn->close();
-?>
