@@ -397,7 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const filteredItems = result.success ? result.data.filter(item => !isExcludedCustomer(item.customer_name || '')) : [];
             if (result.success && filteredItems.length > 0) {
                 renderTable(filteredItems);
-                renderPagination({ ...result.pagination, total_items: filteredItems.length, total_pages: filteredItems.length > 0 ? Math.ceil(filteredItems.length / result.pagination.items_per_page) : 0 });
+                renderPagination(result.pagination);
             } else {
                 showNoData(searchTerm || startDate || endDate ? `ไม่พบรายการตามเงื่อนไขที่กำหนด` : 'ไม่มีรายการที่รอตรวจรับในคลังนี้');
             }
