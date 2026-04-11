@@ -19,15 +19,30 @@ try {
     $cdCode = $_POST['cd_code'];
     $newStatus = $_POST['new_status'];
     $remark = isset($_POST['remark']) ? trim($_POST['remark']) : null;
+    $receivedByEmployee = isset($_POST['received_by_employee']) ? trim($_POST['received_by_employee']) : null;
+
+    if ($newStatus === 'รับแล้ว' && ($receivedByEmployee === null || $receivedByEmployee === '')) {
+        throw new Exception('Missing receiving employee.');
+    }
 
     $setClauses = ['delivery_status = ?'];
     $params = [$newStatus];
     $types = 's';
 
-    if ($remark !== null && $remark !== '') {
+    if ($newStatus === 'เลื่อน' && $remark !== null && $remark !== '') {
         $setClauses[] = 'delivery_remark = ?';
         $params[] = $remark;
         $types .= 's';
+    } elseif ($newStatus !== 'เลื่อน') {
+        $setClauses[] = 'delivery_remark = NULL';
+    }
+
+    if ($newStatus === 'รับแล้ว') {
+        $setClauses[] = 'received_by_employee = ?';
+        $params[] = $receivedByEmployee;
+        $types .= 's';
+    } else {
+        $setClauses[] = 'received_by_employee = NULL';
     }
 
     $params[] = $docno;

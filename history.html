@@ -127,11 +127,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_GET_DETAILS = './api/get_item_details.php';
     const API_UPDATE_STATUS = './api/update_status.php';
     const API_DELETE_ITEM = './api/delete_item.php';
+    const API_GET_LOCATION_EMPLOYEES = './api/get_location_employees.php';
 
     let selectedLocation = null;
     let selectedStatus = null;
     let locationName = '';
     let currentPage = 1;
+    let locationEmployees = null;
     const EXCLUDED_CUSTOMER_KEYWORD = 'นำรุ่งเคหะภัณฑ์สำนักงานใหญ่';
 
     const normalizeCustomerName = (value = '') => value
@@ -166,6 +168,81 @@ document.addEventListener('DOMContentLoaded', () => {
     const showLoading = () => { tableBody.innerHTML = ''; paginationControls.innerHTML = ''; tableStatus.innerHTML = `<div class="flex justify-center items-center py-10"><div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div><p class="ml-4 text-gray-600">กำลังโหลด...</p></div>`; tableStatus.classList.remove('hidden'); };
     const showNoData = (message) => { tableBody.innerHTML = ''; paginationControls.innerHTML = ''; tableStatus.innerHTML = `<p class="py-10">${message}</p>`; tableStatus.classList.remove('hidden'); };
     const hideStatus = () => { tableBody.innerHTML = ''; tableStatus.classList.add('hidden'); };
+
+    const fetchLocationEmployees = async () => {
+        if (!selectedLocation) {
+            return [];
+        }
+
+        if (locationEmployees) {
+            return locationEmployees;
+        }
+
+        const response = await fetch(`${API_GET_LOCATION_EMPLOYEES}?location_code=${encodeURIComponent(selectedLocation)}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.message || 'ไม่สามารถโหลดรายชื่อพนักงานได้');
+        }
+
+        locationEmployees = Array.isArray(result.data) ? result.data : [];
+        return locationEmployees;
+    };
+
+    const promptReceivingEmployee = async () => {
+        const employees = await fetchLocationEmployees();
+
+        if (employees.length === 0) {
+            await Swal.fire({
+                icon: 'warning',
+                title: 'ยังไม่มีรายชื่อเจ้าหน้าที่',
+                text: `ยังไม่ได้ตั้งค่าพนักงานประจำคลัง ${selectedLocation} กรุณาเพิ่มข้อมูลในหน้าจัดการก่อน`,
+                confirmButtonColor: '#16a34a'
+            });
+            return null;
+        }
+
+        return new Promise((resolve) => {
+            const employeeButtons = employees.map((employee) => `
+                <button
+                    type="button"
+                    id="employee-${employee.id}"
+                    class="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-left text-sm font-semibold text-green-800 transition hover:border-green-300 hover:bg-green-100"
+                >
+                    ${employee.employee_name}
+                </button>
+            `).join('');
+
+            Swal.fire({
+                title: 'เลือกเจ้าหน้าที่ประจำคลัง',
+                html: `
+                    <div class="mb-4 text-sm text-slate-500">เลือกชื่อเจ้าหน้าที่ที่รับสินค้าให้ลูกค้า</div>
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">${employeeButtons}</div>
+                `,
+                showConfirmButton: false,
+                showCancelButton: true,
+                cancelButtonText: 'ยกเลิก',
+                width: '42rem',
+                didOpen: () => {
+                    employees.forEach((employee) => {
+                        const element = document.getElementById(`employee-${employee.id}`);
+                        if (!element) return;
+                        element.addEventListener('click', () => {
+                            Swal.close();
+                            resolve(employee);
+                        });
+                    });
+                }
+            }).then((result) => {
+                if (result.dismiss) {
+                    resolve(null);
+                }
+            });
+        });
+    };
     
     const fetchItems = async (page = 1) => {
         if (!selectedLocation || !selectedStatus) {
@@ -218,7 +295,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const docDate = item.docdate ? new Date(item.docdate).toLocaleDateString('th-TH', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '';
             let deliveryInfo = '-';
-            if (item.delivery_status === 'เลื่อน' && item.delivery_remark) {
+            if (item.delivery_status === 'รับแล้ว' && item.received_by_employee) {
+                deliveryInfo = `<span class="text-green-700 font-semibold">${item.received_by_employee}</span>`;
+            } else if (item.delivery_status === 'เลื่อน' && item.delivery_remark) {
                 deliveryInfo = `<span class="text-yellow-600 font-semibold">${item.delivery_remark}</span>`;
             } else if (item.last_update) {
                 deliveryInfo = new Date(item.last_update).toLocaleString('th-TH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' น.';
@@ -300,6 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
                              <div><p class="text-gray-500">สถานะ</p><p class="font-bold text-base text-red-600">${item.delivery_status || 'รอตรวจรับ'}</p></div>
                              <div><p class="text-gray-500">อัปเดตล่าสุด</p><p class="font-semibold">${item.last_update ? new Date(item.last_update).toLocaleString('th-TH', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute:'2-digit'}) + ' น.' : '-'}</p></div>
+                             <div><p class="text-gray-500">เจ้าหน้าที่รับสินค้า</p><p class="font-semibold">${item.received_by_employee || '-'}</p></div>
                              <div class="md:col-span-2"><p class="text-gray-500">หมายเหตุการตรวจรับ</p><p class="font-semibold">${item.delivery_remark || '-'}</p></div>
                         </div>
                     </section>
@@ -347,6 +427,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const handleUpdateStatus = async (button) => {
         const { docno, cdcode, status } = button.dataset;
+        let receivedByEmployee = null;
+
+        if (status === 'รับแล้ว') {
+            const selectedEmployee = await promptReceivingEmployee();
+            if (!selectedEmployee) {
+                return;
+            }
+            receivedByEmployee = selectedEmployee.employee_name;
+        }
+
         Swal.fire({ 
             title: 'ยืนยันการอัปเดต?', 
             text: `เปลี่ยนสถานะ DocNo: ${docno} เป็น "${status}" ใช่หรือไม่?`, 
@@ -363,6 +453,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     formData.append('docno', docno);
                     formData.append('cd_code', cdcode);
                     formData.append('new_status', status);
+                    if (receivedByEmployee) {
+                        formData.append('received_by_employee', receivedByEmployee);
+                    }
                     const response = await fetch(API_UPDATE_STATUS, { method: 'POST', body: formData });
                     const resData = await response.json();
                     if (resData.success) {

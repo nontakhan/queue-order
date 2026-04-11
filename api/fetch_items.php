@@ -93,7 +93,7 @@ try {
         $dataSql = "SELECT docno, docdate, custname AS customer_name, cd_code,
                        cd_name, qty, Lname_unit AS unit, REMARK, UNITPRICE, branch, shipflag,
                        location_code, location,
-                       delivery_status, delivery_remark, last_update
+                       delivery_status, delivery_remark, received_by_employee, last_update
                     FROM transfer_data_from_mssql {$whereSql}
                     ORDER BY last_update DESC, docdate DESC, docno DESC
                     LIMIT {$limit} OFFSET {$offset}";
