@@ -68,7 +68,7 @@
     </div>
 
 
-    <div class="relative mx-auto max-w-7xl p-4 sm:p-6 md:p-8">
+    <div class="relative mx-auto max-w-[96rem] p-4 sm:p-6 md:p-8">
         <!-- Header Updated -->
         <header class="mb-6">
             <div class="rounded-[2rem] border border-slate-200/80 bg-white/85 p-6 shadow-xl shadow-slate-200/70 ring-1 ring-white/60 backdrop-blur md:p-8">
@@ -138,8 +138,8 @@
             </div>
 
             <div class="overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white/95 text-slate-900 shadow-xl shadow-slate-200/70 backdrop-blur">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left">
+                <div class="overflow-x-auto xl:overflow-visible">
+                    <table class="w-full min-w-[82rem] text-left xl:min-w-full">
                         <thead class="bg-gray-50 border-b border-gray-200">
                             <tr>
                                 <th class="px-2 py-3"></th>
@@ -705,7 +705,7 @@ document.addEventListener('DOMContentLoaded', () => {
             row.dataset.shipflag = item.shipflag || '0';
 
             row.innerHTML = `
-                <td class="px-2 py-4 flex justify-center items-center">${shipIconHTML}</td>
+                <td class="px-2 py-4 align-middle"><div class="flex min-h-[2.75rem] items-center justify-center">${shipIconHTML}</div></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800">${item.docno||''}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${docDate}</td>
                 <td class="px-6 py-4 text-sm text-gray-700">${item.customer_name||'N/A'}</td>
