@@ -16,13 +16,14 @@ if ($locationCode === '') {
 $lastKnownCount = isset($_GET['last_count']) ? (int) $_GET['last_count'] : -1;
 $excludedCustomerKeyword = 'เธเธณเธฃเธธเนเธเน€เธเธซเธฐเธ เธฑเธ“เธ‘เนเธชเธณเธเธฑเธเธเธฒเธเนเธซเธเน';
 $normalizedCustomerExpr = "REPLACE(REPLACE(REPLACE(REPLACE(TRIM(custname), ' ', ''), '(', ''), ')', ''), 'ใ€€', '')";
+$normalizedLocationExpr = "REPLACE(TRIM(location_code), ' ', '')";
 $escapedLoc = $conn->real_escape_string($locationCode);
 $escapedExcludedCustomerKeyword = $conn->real_escape_string($excludedCustomerKeyword);
 
 try {
     $sql = "SELECT COUNT(*) as total_pending
             FROM transfer_data_from_mssql
-            WHERE TRIM(location_code) = '{$escapedLoc}'
+            WHERE FIND_IN_SET('{$escapedLoc}', {$normalizedLocationExpr}) > 0
             AND (delivery_status IS NULL OR delivery_status = '')
             AND (custname IS NULL OR {$normalizedCustomerExpr} NOT LIKE '%{$escapedExcludedCustomerKeyword}%')";
     $result = $conn->query($sql);
@@ -38,7 +39,7 @@ try {
         $limitItems = min($diff, 10);
         $sqlNew = "SELECT docno, docdate, custname, cd_name, qty, Lname_unit
                    FROM transfer_data_from_mssql
-                   WHERE TRIM(location_code) = '{$escapedLoc}'
+                   WHERE FIND_IN_SET('{$escapedLoc}', {$normalizedLocationExpr}) > 0
                    AND (delivery_status IS NULL OR delivery_status = '')
                    AND (custname IS NULL OR {$normalizedCustomerExpr} NOT LIKE '%{$escapedExcludedCustomerKeyword}%')
                    ORDER BY last_update DESC, docdate DESC

@@ -24,6 +24,7 @@ $startDate = isset($_GET['startDate']) ? trim($_GET['startDate']) : '';
 $endDate = isset($_GET['endDate']) ? trim($_GET['endDate']) : '';
 $excludedCustomerKeyword = 'เธเธณเธฃเธธเนเธเน€เธเธซเธฐเธ เธฑเธ“เธ‘เนเธชเธณเธเธฑเธเธเธฒเธเนเธซเธเน';
 $normalizedCustomerExpr = "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(TRIM(custname), ' ', ''), '(', ''), ')', ''), 'ใ€€', ''), '.', ''), CHAR(9), ''), CHAR(10), ''), CHAR(13), '')";
+$normalizedLocationExpr = "REPLACE(TRIM(location_code), ' ', '')";
 
 $items = [];
 $error = null;
@@ -43,7 +44,7 @@ try {
 
     if ($locationCode !== '') {
         $escapedLocation = $conn->real_escape_string($locationCode);
-        $whereClauses[] = "TRIM(location_code) = '{$escapedLocation}'";
+        $whereClauses[] = "FIND_IN_SET('{$escapedLocation}', {$normalizedLocationExpr}) > 0";
     }
 
     if ($customerName !== '') {
