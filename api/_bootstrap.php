@@ -68,3 +68,15 @@ function app_user_payload(array $row): array
     ];
 }
 
+function app_employee_payload(array $row): array
+{
+    return [
+        'id' => (int) $row['id'],
+        'employee_name' => $row['employee_name'],
+        'location_code' => $row['location_code'],
+        'location_name' => $row['location_name'] ?? null,
+        'is_active' => (int) $row['is_active'],
+        'created_at' => $row['created_at'] ?? null,
+        'updated_at' => $row['updated_at'] ?? null,
+    ];
+}

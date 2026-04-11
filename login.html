@@ -13,38 +13,78 @@
         body { font-family: 'Sarabun', sans-serif; }
     </style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-green-100 via-white to-blue-100">
-    <div class="min-h-screen flex items-center justify-center p-6">
-        <div class="w-full max-w-md bg-white rounded-3xl shadow-xl p-8">
-            <div class="mb-6 flex justify-start">
-                <button id="backBtn" type="button" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300">
-                    <span aria-hidden="true">&larr;</span>
-                    <span>ย้อนกลับ</span>
-                </button>
-            </div>
+<body class="min-h-screen bg-slate-950 text-white">
+    <div class="relative min-h-screen overflow-hidden">
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(34,197,94,0.28),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.28),_transparent_35%),linear-gradient(160deg,_#020617_0%,_#0f172a_48%,_#111827_100%)]"></div>
+        <div class="absolute inset-0 opacity-20" style="background-image: linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px); background-size: 28px 28px;"></div>
 
-            <div class="text-center mb-8">
-                <h1 class="text-3xl font-bold text-gray-800">Queue Order</h1>
-                <p class="mt-2 text-gray-500">เข้าสู่ระบบเพื่อใช้งานส่วนจัดการของแอดมิน</p>
-            </div>
+        <div class="relative mx-auto flex min-h-screen max-w-6xl items-center p-6 lg:p-10">
+            <div class="grid w-full gap-8 lg:grid-cols-[1.1fr,0.9fr] lg:items-center">
+                <section class="space-y-6">
+                    <a href="index.html" class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-white/12">
+                        <span aria-hidden="true">&larr;</span>
+                        <span>กลับหน้าหลัก</span>
+                    </a>
 
-            <form id="loginForm" class="space-y-4">
-                <div>
-                    <label for="username" class="mb-1 block text-sm font-medium text-gray-700">ชื่อผู้ใช้</label>
-                    <input id="username" name="username" type="text" class="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="username" required>
-                </div>
-                <div>
-                    <label for="password" class="mb-1 block text-sm font-medium text-gray-700">รหัสผ่าน</label>
-                    <input id="password" name="password" type="password" class="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="password" required>
-                </div>
-                <button id="loginBtn" type="submit" class="w-full rounded-xl bg-green-600 px-4 py-3 font-semibold text-white transition hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 disabled:cursor-not-allowed disabled:opacity-60">เข้าสู่ระบบ</button>
-            </form>
+                    <div class="max-w-2xl">
+                        <p class="mb-3 text-sm font-semibold uppercase tracking-[0.35em] text-emerald-300">Queue Order System</p>
+                        <h1 class="text-4xl font-bold leading-tight text-white md:text-5xl">ศูนย์จัดการระบบคิวตรวจรับสินค้าสำหรับผู้ดูแล</h1>
+                        <p class="mt-4 text-lg leading-8 text-slate-300">เข้าสู่ระบบเพื่อจัดการคลังสินค้า ผู้ใช้งาน รายชื่อพนักงานประจำคลัง และเสียงแจ้งเตือนของระบบจากหน้าจัดการกลาง</p>
+                    </div>
 
-            <div class="mt-6 rounded-2xl bg-gray-50 p-4 text-sm text-gray-600">
-                <p class="font-semibold text-gray-700">ผู้ใช้เริ่มต้น</p>
-                <p>username: <code>admin</code></p>
-                <p>password: <code>admin1234</code></p>
-                <p class="mt-2 text-xs text-gray-500">ควรเปลี่ยนรหัสผ่านหลังติดตั้งเสร็จ</p>
+                    <div class="grid gap-4 md:grid-cols-3">
+                        <div class="rounded-2xl border border-white/10 bg-white/8 p-4 backdrop-blur">
+                            <p class="text-sm font-semibold text-emerald-300">จัดการคลัง</p>
+                            <p class="mt-2 text-sm leading-6 text-slate-300">เพิ่ม ปรับสถานะ และดูข้อมูลคลังที่เปิดใช้งานในระบบ</p>
+                        </div>
+                        <div class="rounded-2xl border border-white/10 bg-white/8 p-4 backdrop-blur">
+                            <p class="text-sm font-semibold text-sky-300">จัดการพนักงาน</p>
+                            <p class="mt-2 text-sm leading-6 text-slate-300">ผูกรายชื่อพนักงานกับคลัง เพื่อให้ข้อมูลโครงสร้างภายในดูง่ายขึ้น</p>
+                        </div>
+                        <div class="rounded-2xl border border-white/10 bg-white/8 p-4 backdrop-blur">
+                            <p class="text-sm font-semibold text-amber-300">เสียงแจ้งเตือน</p>
+                            <p class="mt-2 text-sm leading-6 text-slate-300">ตั้งค่าเสียงแต่ละคลังและตรวจสอบสถานะได้จากหน้าเดียว</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="mx-auto w-full max-w-md">
+                    <div class="rounded-[2rem] border border-white/12 bg-white/95 p-7 text-slate-900 shadow-2xl shadow-black/30 backdrop-blur">
+                        <div class="mb-6 flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-600">Admin Access</p>
+                                <h2 class="mt-2 text-2xl font-bold text-slate-900">เข้าสู่หน้าจัดการ</h2>
+                            </div>
+                            <div class="rounded-2xl bg-emerald-100 p-3 text-emerald-700">
+                                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <form id="loginForm" class="space-y-4">
+                            <div>
+                                <label for="username" class="mb-1 block text-sm font-medium text-slate-700">ชื่อผู้ใช้</label>
+                                <input id="username" name="username" type="text" required placeholder="กรอกชื่อผู้ใช้" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100">
+                            </div>
+                            <div>
+                                <label for="password" class="mb-1 block text-sm font-medium text-slate-700">รหัสผ่าน</label>
+                                <input id="password" name="password" type="password" required placeholder="กรอกรหัสผ่าน" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100">
+                            </div>
+                            <button id="loginBtn" type="submit" class="w-full rounded-2xl bg-slate-900 px-4 py-3 font-semibold text-white transition hover:bg-slate-800 focus:outline-none focus:ring-4 focus:ring-slate-200 disabled:cursor-not-allowed disabled:opacity-60">เข้าสู่ระบบ</button>
+                        </form>
+
+                        <div class="mt-6 rounded-2xl bg-slate-50 p-4">
+                            <p class="text-sm font-semibold text-slate-800">เกี่ยวกับระบบ</p>
+                            <p class="mt-2 text-sm leading-6 text-slate-600">หน้านี้สำหรับผู้ดูแลระบบเท่านั้น ใช้เพื่อจัดการข้อมูลหลักของคลัง ผู้ใช้ พนักงาน และการตั้งค่าที่เกี่ยวข้องกับการทำงานประจำวันของระบบคิวตรวจรับ</p>
+                        </div>
+
+                        <button id="backBtn" type="button" class="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-slate-700">
+                            <span aria-hidden="true">&larr;</span>
+                            <span>ย้อนกลับ</span>
+                        </button>
+                    </div>
+                </section>
             </div>
         </div>
     </div>
@@ -80,10 +120,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         loginBtn.textContent = 'กำลังเข้าสู่ระบบ...';
 
         try {
-            const formData = new FormData(form);
             const response = await fetch('./api/auth_login.php', {
                 method: 'POST',
-                body: formData,
+                body: new FormData(form),
                 credentials: 'same-origin'
             });
             const result = await response.json();
