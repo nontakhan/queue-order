@@ -23,13 +23,22 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         tr.removing { opacity: 0; transition: opacity 0.5s ease-out; }
         .item-row { cursor: pointer; }
+        .page-grid {
+            background-image: linear-gradient(rgba(15,23,42,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.05) 1px, transparent 1px);
+            background-size: 28px 28px;
+        }
+        header h1 { color: #0f172a; }
+        header p { color: #475569; }
+        #locationDisplay span { color: #64748b; }
     </style>
 </head>
-<body class="bg-gray-50">
+<body class="min-h-screen bg-slate-50 text-slate-900">
+    <div class="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(34,197,94,0.10),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.10),_transparent_34%),linear-gradient(160deg,_#f8fafc_0%,_#eff6ff_46%,_#f8fafc_100%)]"></div>
+    <div class="page-grid pointer-events-none fixed inset-0 opacity-60"></div>
 
     <!-- Location Selection Modal -->
     <div id="locationModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
-        <div class="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-2xl w-full mx-4">
+        <div class="mx-4 w-full max-w-2xl rounded-[2rem] border border-slate-200/80 bg-white/95 p-6 text-slate-900 shadow-2xl shadow-slate-200/80 backdrop-blur md:p-8">
             <h2 class="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-2">กรุณาเลือกคลังสินค้า</h2>
             <p class="text-center text-gray-500 mb-6">เลือกคลังที่ต้องการตรวจรับเพื่อแสดงรายการ</p>
             <div id="locationButtons" class="grid grid-cols-2 md:grid-cols-3 gap-4"></div>
@@ -44,13 +53,13 @@
 
     <!-- Item Details Modal -->
     <div id="detailsModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto" id="detailsModalContent">
+        <div class="mx-4 max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[2rem] border border-slate-200/80 bg-white/95 p-6 text-slate-900 shadow-2xl shadow-slate-200/80 backdrop-blur md:p-8" id="detailsModalContent">
             <div class="flex justify-between items-center mb-6 border-b pb-4">
-                <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+                <h2 class="text-2xl font-bold text-slate-900 flex items-center">
                     <svg class="w-6 h-6 mr-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     รายละเอียดรายการ
                 </h2>
-                <button id="closeDetailsModal" class="text-gray-400 hover:text-gray-700 transition-colors text-3xl leading-none">&times;</button>
+                <button id="closeDetailsModal" class="text-slate-400 hover:text-slate-700 transition-colors text-3xl leading-none">&times;</button>
             </div>
             <div id="detailsContent" class="space-y-4">
                 <!-- Details will be loaded here -->
@@ -59,9 +68,10 @@
     </div>
 
 
-    <div class="container mx-auto p-4 sm:p-6 md:p-8">
+    <div class="relative mx-auto max-w-7xl p-4 sm:p-6 md:p-8">
         <!-- Header Updated -->
         <header class="mb-6">
+            <div class="rounded-[2rem] border border-slate-200/80 bg-white/85 p-6 shadow-xl shadow-slate-200/70 ring-1 ring-white/60 backdrop-blur md:p-8">
             <div class="flex flex-wrap justify-between items-center gap-4">
                 <!-- Left Side: Logo, Title, and Location -->
                 <div class="flex items-center space-x-4">
@@ -98,12 +108,12 @@
                     <a href="admin.html#sound-settings" id="soundAdminLink" class="bg-purple-100 text-purple-800 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-purple-200 transition hidden flex items-center"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>ตั้งค่าเสียง</a>
                     <button id="changeLocationBtn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-300 transition hidden">เปลี่ยนคลัง</button>
                 </div>
-            </div>
+            </div></div>
         </header>
 
         <div id="mainContent" class="hidden">
             <!-- Filter Section -->
-            <div class="bg-white p-4 rounded-xl shadow-sm mb-6">
+            <div class="mb-6 rounded-[1.75rem] border border-slate-200/80 bg-white/95 p-5 text-slate-900 shadow-xl shadow-slate-200/70 backdrop-blur md:p-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                     <div class="lg:col-span-2">
                         <label for="searchInput" class="block text-sm font-medium text-gray-700 mb-1">ค้นหา DocNo / ชื่อลูกค้า</label>
@@ -127,7 +137,7 @@
                 </div>
             </div>
 
-            <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div class="overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white/95 text-slate-900 shadow-xl shadow-slate-200/70 backdrop-blur">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left">
                         <thead class="bg-gray-50 border-b border-gray-200">
@@ -211,15 +221,15 @@ document.addEventListener('DOMContentLoaded', () => {
         controlsRoot.className = 'flex w-full flex-col gap-3 lg:w-auto lg:items-end';
 
         const historyGroup = document.createElement('div');
-        historyGroup.className = 'flex flex-col gap-2 rounded-2xl bg-white/90 p-3 shadow-sm ring-1 ring-gray-200';
+        historyGroup.className = 'flex flex-col gap-2 rounded-[1.4rem] border border-slate-200 bg-slate-50/90 p-3 shadow-md shadow-slate-200/70 backdrop-blur';
         const historyTitle = document.createElement('div');
-        historyTitle.className = 'px-1 text-xs font-semibold uppercase tracking-wider text-gray-500';
+        historyTitle.className = 'px-1 text-xs font-semibold uppercase tracking-[0.3em] text-slate-500';
         historyTitle.textContent = 'ประวัติสถานะ';
 
         const utilityGroup = document.createElement('div');
-        utilityGroup.className = 'flex flex-col gap-2 rounded-2xl bg-white/90 p-3 shadow-sm ring-1 ring-gray-200';
+        utilityGroup.className = 'flex flex-col gap-2 rounded-[1.4rem] border border-slate-200 bg-slate-50/90 p-3 shadow-md shadow-slate-200/70 backdrop-blur';
         const utilityTitle = document.createElement('div');
-        utilityTitle.className = 'px-1 text-xs font-semibold uppercase tracking-wider text-gray-500';
+        utilityTitle.className = 'px-1 text-xs font-semibold uppercase tracking-[0.3em] text-slate-500';
         utilityTitle.textContent = 'เครื่องมือ';
 
         const historyRow = document.createElement('div');
