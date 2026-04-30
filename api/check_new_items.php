@@ -17,18 +17,17 @@ $lastKnownCount = isset($_GET['last_count']) ? (int) $_GET['last_count'] : -1;
 $excludedCustomerKeyword = 'เธเธณเธฃเธธเนเธเน€เธเธซเธฐเธ เธฑเธ“เธ‘เนเธชเธณเธเธฑเธเธเธฒเธเนเธซเธเน';
 $normalizedCustomerExpr = "REPLACE(REPLACE(REPLACE(REPLACE(TRIM(custname), ' ', ''), '(', ''), ')', ''), 'ใ€€', '')";
 $normalizedLocationExpr = "REPLACE(TRIM(location_code), ' ', '')";
-$escapedLoc = $conn->real_escape_string($locationCode);
-$escapedExcludedCustomerKeyword = $conn->real_escape_string($excludedCustomerKeyword);
+$excludedPattern = '%' . $excludedCustomerKeyword . '%';
 
 try {
     $sql = "SELECT COUNT(*) as total_pending
             FROM transfer_data_from_mssql
-            WHERE FIND_IN_SET('{$escapedLoc}', {$normalizedLocationExpr}) > 0
+            WHERE FIND_IN_SET(?, {$normalizedLocationExpr}) > 0
             AND (delivery_status IS NULL OR delivery_status = '')
-            AND (custname IS NULL OR {$normalizedCustomerExpr} NOT LIKE '%{$escapedExcludedCustomerKeyword}%')";
-    $result = $conn->query($sql);
+            AND (custname IS NULL OR {$normalizedCustomerExpr} NOT LIKE ?)";
+    $result = app_execute($conn, $sql, 'ss', [$locationCode, $excludedPattern]);
     if ($result === false) {
-        throw new Exception('Query failed: ' . $conn->error);
+        throw new Exception('Query failed.');
     }
 
     $totalPending = (int) $result->fetch_assoc()['total_pending'];
@@ -39,12 +38,12 @@ try {
         $limitItems = min($diff, 10);
         $sqlNew = "SELECT docno, docdate, custname, cd_name, qty, Lname_unit
                    FROM transfer_data_from_mssql
-                   WHERE FIND_IN_SET('{$escapedLoc}', {$normalizedLocationExpr}) > 0
+                   WHERE FIND_IN_SET(?, {$normalizedLocationExpr}) > 0
                    AND (delivery_status IS NULL OR delivery_status = '')
-                   AND (custname IS NULL OR {$normalizedCustomerExpr} NOT LIKE '%{$escapedExcludedCustomerKeyword}%')
+                   AND (custname IS NULL OR {$normalizedCustomerExpr} NOT LIKE ?)
                    ORDER BY last_update DESC, docdate DESC
-                   LIMIT {$limitItems}";
-        $newResult = $conn->query($sqlNew);
+                   LIMIT ?";
+        $newResult = app_execute($conn, $sqlNew, 'ssi', [$locationCode, $excludedPattern, $limitItems]);
         if ($newResult) {
             while ($newRow = $newResult->fetch_assoc()) {
                 $newItems[] = $newRow;
@@ -56,5 +55,5 @@ try {
     app_json_response(['success' => true, 'data' => ['location_code' => $locationCode, 'total_pending' => $totalPending, 'new_items' => $newItems]]);
 } catch (Exception $e) {
     $conn->close();
-    app_json_response(['success' => false, 'message' => $e->getMessage()], 500);
+    app_error_response('Query Error', 500, $e);
 }

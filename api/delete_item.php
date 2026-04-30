@@ -36,5 +36,5 @@ try {
     app_json_response(['success' => true, 'message' => 'ลบรายการสำเร็จ']);
 } catch (Exception $e) {
     $conn->close();
-    app_json_response(['success' => false, 'message' => 'Query Error', 'error_detail' => $e->getMessage()], 500);
+    app_error_response('Delete Error', 500, $e);
 }

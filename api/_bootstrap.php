@@ -18,7 +18,7 @@ function app_db(): mysqli
         app_json_response(['success' => false, 'message' => 'Database Connection Error'], 500);
     }
 
-    $conn->set_charset('utf8');
+    $conn->set_charset('utf8mb4');
     return $conn;
 }
 
@@ -28,6 +28,52 @@ function app_json_response(array $payload, int $statusCode = 200): void
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode($payload);
     exit;
+}
+
+function app_is_debug(): bool
+{
+    return getenv('APP_DEBUG') === '1';
+}
+
+function app_error_response(string $message, int $statusCode = 500, ?Throwable $error = null): void
+{
+    if ($error) {
+        error_log($error->getMessage());
+    }
+
+    $payload = ['success' => false, 'message' => $message];
+    if (app_is_debug() && $error) {
+        $payload['error_detail'] = $error->getMessage();
+    }
+
+    app_json_response($payload, $statusCode);
+}
+
+function app_execute(mysqli $conn, string $sql, string $types = '', array $params = [])
+{
+    $stmt = $conn->prepare($sql);
+    if ($stmt === false) {
+        throw new Exception('Failed to prepare statement: ' . $conn->error);
+    }
+
+    if ($types !== '') {
+        $stmt->bind_param($types, ...$params);
+    }
+
+    if (!$stmt->execute()) {
+        $error = $stmt->error;
+        $stmt->close();
+        throw new Exception('Failed to execute statement: ' . $error);
+    }
+
+    $result = $stmt->get_result();
+    if ($result === false && $stmt->errno === 0) {
+        $stmt->close();
+        return true;
+    }
+
+    $stmt->close();
+    return $result;
 }
 
 function app_current_user(): ?array

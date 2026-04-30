@@ -30,78 +30,92 @@ $items = [];
 $error = null;
 $totalPages = 0;
 $totalItems = 0;
-$debugInfo = [];
 
 try {
     $whereClauses = [];
+    $params = [];
+    $types = '';
 
     if (!$includeAllStatus && $status !== '') {
-        $escapedStatus = $conn->real_escape_string($status);
-        $whereClauses[] = "delivery_status = '{$escapedStatus}'";
+        $whereClauses[] = 'delivery_status = ?';
+        $params[] = $status;
+        $types .= 's';
     } elseif (!$includeAllStatus) {
         $whereClauses[] = "(delivery_status IS NULL OR delivery_status = '')";
     }
 
     if ($locationCode !== '') {
-        $escapedLocation = $conn->real_escape_string($locationCode);
-        $whereClauses[] = "FIND_IN_SET('{$escapedLocation}', {$normalizedLocationExpr}) > 0";
+        $whereClauses[] = "FIND_IN_SET(?, {$normalizedLocationExpr}) > 0";
+        $params[] = $locationCode;
+        $types .= 's';
     }
 
     if ($customerName !== '') {
-        $escapedCustomerName = $conn->real_escape_string($customerName);
-        $normalizedCustomerName = preg_replace('/[()\s]+/u', '', $escapedCustomerName);
-        $whereClauses[] = "{$normalizedCustomerExpr} = '{$normalizedCustomerName}'";
+        $normalizedCustomerName = preg_replace('/[()\s]+/u', '', $customerName);
+        $whereClauses[] = "{$normalizedCustomerExpr} = ?";
+        $params[] = $normalizedCustomerName;
+        $types .= 's';
     } elseif ($customerKeyword !== '') {
-        $escapedCustomerKeyword = $conn->real_escape_string($customerKeyword);
-        $normalizedCustomerKeyword = preg_replace('/[()\s]+/u', '', $escapedCustomerKeyword);
-        $whereClauses[] = "{$normalizedCustomerExpr} LIKE '%{$normalizedCustomerKeyword}%'";
+        $normalizedCustomerKeyword = preg_replace('/[()\s]+/u', '', $customerKeyword);
+        $whereClauses[] = "{$normalizedCustomerExpr} LIKE ?";
+        $params[] = '%' . $normalizedCustomerKeyword . '%';
+        $types .= 's';
     } elseif (!$includeExcludedCustomer) {
-        $escapedExcludedCustomerKeyword = $conn->real_escape_string($excludedCustomerKeyword);
-        $normalizedExcludedCustomerKeyword = preg_replace('/[()\s]+/u', '', $escapedExcludedCustomerKeyword);
-        $whereClauses[] = "(custname IS NULL OR {$normalizedCustomerExpr} NOT LIKE '%{$normalizedExcludedCustomerKeyword}%')";
+        $normalizedExcludedCustomerKeyword = preg_replace('/[()\s]+/u', '', $excludedCustomerKeyword);
+        $whereClauses[] = "(custname IS NULL OR {$normalizedCustomerExpr} NOT LIKE ?)";
+        $params[] = '%' . $normalizedExcludedCustomerKeyword . '%';
+        $types .= 's';
     }
 
     if ($searchTerm !== '') {
-        $escapedSearch = $conn->real_escape_string($searchTerm);
-        $whereClauses[] = "(docno LIKE '%{$escapedSearch}%' OR custname LIKE '%{$escapedSearch}%')";
+        $whereClauses[] = '(docno LIKE ? OR custname LIKE ?)';
+        $params[] = '%' . $searchTerm . '%';
+        $params[] = '%' . $searchTerm . '%';
+        $types .= 'ss';
     }
 
     if ($startDate !== '' && $endDate !== '') {
-        $escapedStartDate = $conn->real_escape_string($startDate);
-        $escapedEndDate = $conn->real_escape_string($endDate);
-        $whereClauses[] = "docdate BETWEEN '{$escapedStartDate}' AND '{$escapedEndDate}'";
+        $whereClauses[] = 'docdate BETWEEN ? AND ?';
+        $params[] = $startDate;
+        $params[] = $endDate;
+        $types .= 'ss';
     } elseif ($startDate !== '') {
-        $escapedStartDate = $conn->real_escape_string($startDate);
-        $whereClauses[] = "docdate >= '{$escapedStartDate}'";
+        $whereClauses[] = 'docdate >= ?';
+        $params[] = $startDate;
+        $types .= 's';
     } elseif ($endDate !== '') {
-        $escapedEndDate = $conn->real_escape_string($endDate);
-        $whereClauses[] = "docdate <= '{$escapedEndDate}'";
+        $whereClauses[] = 'docdate <= ?';
+        $params[] = $endDate;
+        $types .= 's';
     }
 
     $whereSql = count($whereClauses) > 0 ? 'WHERE ' . implode(' AND ', $whereClauses) : '';
-    $debugInfo['final_where_clause'] = $whereSql;
 
     $countSql = 'SELECT COUNT(*) as total FROM transfer_data_from_mssql ' . $whereSql;
-    $countResult = $conn->query($countSql);
+    $countResult = app_execute($conn, $countSql, $types, $params);
     if ($countResult === false) {
-        throw new Exception('Count Query failed: ' . $conn->error);
+        throw new Exception('Count Query failed.');
     }
 
     $totalItems = (int) $countResult->fetch_assoc()['total'];
     $totalPages = $totalItems > 0 ? (int) ceil($totalItems / $limit) : 0;
 
     if ($totalItems > 0) {
+        $dataParams = $params;
+        $dataTypes = $types . 'ii';
+        $dataParams[] = $limit;
+        $dataParams[] = $offset;
         $dataSql = "SELECT docno, docdate, custname AS customer_name, cd_code,
                        cd_name, qty, Lname_unit AS unit, REMARK, UNITPRICE, branch, shipflag,
                        location_code, location,
                        delivery_status, delivery_remark, received_by_employee, last_update
                     FROM transfer_data_from_mssql {$whereSql}
                     ORDER BY last_update DESC, docdate DESC, docno DESC
-                    LIMIT {$limit} OFFSET {$offset}";
+                    LIMIT ? OFFSET ?";
 
-        $result = $conn->query($dataSql);
+        $result = app_execute($conn, $dataSql, $dataTypes, $dataParams);
         if ($result === false) {
-            throw new Exception('Data Query failed: ' . $conn->error);
+            throw new Exception('Data Query failed.');
         }
 
         while ($row = $result->fetch_assoc()) {
@@ -115,7 +129,7 @@ try {
 $conn->close();
 
 if ($error) {
-    app_json_response(['success' => false, 'message' => 'Query Error', 'error_detail' => $error, 'debug_info' => $debugInfo], 500);
+    app_error_response('Query Error', 500, new Exception($error));
 }
 
 app_json_response([
@@ -127,5 +141,4 @@ app_json_response([
         'items_per_page' => $limit,
         'total_items' => $totalItems,
     ],
-    'debug_info' => $debugInfo,
 ]);

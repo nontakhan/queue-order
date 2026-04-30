@@ -13,21 +13,18 @@ header('Access-Control-Allow-Methods: GET, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With');
 
 // รวมไฟล์การตั้งค่าฐานข้อมูล
-require_once '../db_config.php'; // แก้ไข: ปรับ path ให้ถูกต้องตามโครงสร้างโฟลเดอร์ของคุณ
+require_once __DIR__ . '/_bootstrap.php';
 
 $conn = null; // กำหนดค่าเริ่มต้นเป็น null
 $stmt = null; // กำหนดค่าเริ่มต้นเป็น null
 
 try {
     // สร้างการเชื่อมต่อฐานข้อมูล
-    $conn = getDbConnection();
-    if (!$conn) {
-        throw new Exception("Failed to connect to database.");
-    }
+    $conn = app_db();
 
     // รับค่า docno และ cd_code จาก GET request
-    $docno = isset($_GET['docno']) ? $conn->real_escape_string($_GET['docno']) : '';
-    $cd_code = isset($_GET['cd_code']) ? $conn->real_escape_string($_GET['cd_code']) : '';
+    $docno = isset($_GET['docno']) ? trim((string) $_GET['docno']) : '';
+    $cd_code = isset($_GET['cd_code']) ? trim((string) $_GET['cd_code']) : '';
 
     // ตรวจสอบว่าได้รับค่าที่จำเป็นครบถ้วนหรือไม่
     if (empty($docno) || empty($cd_code)) {
@@ -69,8 +66,15 @@ try {
 } catch (Exception $e) {
     // จัดการข้อผิดพลาดและส่ง Error Message กลับในรูปแบบ JSON
     error_log("Error in fetch_single_item.php: " . $e->getMessage());
-    http_response_code(500); // ตั้ง HTTP Status Code เป็น 500 (Internal Server Error)
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    if ($stmt) {
+        $stmt->close();
+        $stmt = null;
+    }
+    if ($conn) {
+        $conn->close();
+        $conn = null;
+    }
+    app_error_response('Query Error', 500, $e);
 } finally {
     // ปิดการเชื่อมต่อและ statement เสมอ
     if ($stmt) {

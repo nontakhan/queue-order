@@ -46,8 +46,7 @@ $destPath = $soundsDir . $newFileName;
 $conn = app_db();
 
 try {
-    $escapedLoc = $conn->real_escape_string($locationCode);
-    $oldResult = $conn->query("SELECT sound_file FROM notification_sounds WHERE location_code = '{$escapedLoc}'");
+    $oldResult = app_execute($conn, 'SELECT sound_file FROM notification_sounds WHERE location_code = ?', 's', [$locationCode]);
     if ($oldResult && $oldResult->num_rows > 0) {
         $oldRow = $oldResult->fetch_assoc();
         $oldFile = $soundsDir . $oldRow['sound_file'];
@@ -60,13 +59,11 @@ try {
         throw new Exception('ไม่สามารถบันทึกไฟล์เสียงได้');
     }
 
-    $escapedFile = $conn->real_escape_string($newFileName);
-    $escapedOrigName = $conn->real_escape_string($file['name']);
     $sql = "INSERT INTO notification_sounds (location_code, sound_file, original_name)
-            VALUES ('{$escapedLoc}', '{$escapedFile}', '{$escapedOrigName}')
-            ON DUPLICATE KEY UPDATE sound_file = '{$escapedFile}', original_name = '{$escapedOrigName}', updated_at = CURRENT_TIMESTAMP";
+            VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE sound_file = VALUES(sound_file), original_name = VALUES(original_name), updated_at = CURRENT_TIMESTAMP";
 
-    if (!$conn->query($sql)) {
+    if (!app_execute($conn, $sql, 'sss', [$locationCode, $newFileName, $file['name']])) {
         throw new Exception('บันทึกข้อมูลลง DB ไม่สำเร็จ: ' . $conn->error);
     }
 
@@ -74,5 +71,8 @@ try {
     app_json_response(['success' => true, 'message' => 'อัปโหลดเสียงสำเร็จ', 'data' => ['location_code' => $locationCode, 'sound_file' => $newFileName, 'original_name' => $file['name']]]);
 } catch (Exception $e) {
     $conn->close();
-    app_json_response(['success' => false, 'message' => $e->getMessage()], 500);
+    if (is_file($destPath)) {
+        @unlink($destPath);
+    }
+    app_error_response('Upload Error', 500, $e);
 }

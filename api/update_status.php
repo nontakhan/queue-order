@@ -64,5 +64,5 @@ try {
     app_json_response(['success' => true, 'message' => $message]);
 } catch (Exception $e) {
     $conn->close();
-    app_json_response(['success' => false, 'message' => 'Update Error', 'error_detail' => $e->getMessage()], 500);
+    app_error_response('Update Error', 500, $e);
 }

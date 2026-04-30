@@ -10,21 +10,21 @@ $locationCode = isset($_GET['location_code']) ? trim($_GET['location_code']) : '
 
 try {
     if ($locationCode !== '') {
-        $escapedLoc = $conn->real_escape_string($locationCode);
         $sql = "SELECT ns.*, al.location_name AS location
                 FROM notification_sounds ns
                 LEFT JOIN app_locations al ON ns.location_code = al.location_code
-                WHERE ns.location_code = '{$escapedLoc}'";
+                WHERE ns.location_code = ?";
+        $result = app_execute($conn, $sql, 's', [$locationCode]);
     } else {
         $sql = "SELECT ns.*, al.location_name AS location
                 FROM notification_sounds ns
                 LEFT JOIN app_locations al ON ns.location_code = al.location_code
                 ORDER BY ns.location_code ASC";
+        $result = app_execute($conn, $sql);
     }
 
-    $result = $conn->query($sql);
     if ($result === false) {
-        throw new Exception('Query failed: ' . $conn->error);
+        throw new Exception('Query failed.');
     }
 
     $sounds = [];
@@ -36,5 +36,5 @@ try {
     app_json_response(['success' => true, 'data' => $sounds]);
 } catch (Exception $e) {
     $conn->close();
-    app_json_response(['success' => false, 'message' => $e->getMessage()], 500);
+    app_error_response('Query Error', 500, $e);
 }

@@ -26,10 +26,10 @@ if ($conn->connect_error) {
 echo "<p><strong>สถานะ:</strong> เชื่อมต่อฐานข้อมูลสำเร็จ</p>";
 
 // 3. ตั้งค่า Character Set
-if (!$conn->set_charset("utf8")) {
-    echo "<p style='color:orange;'><strong>คำเตือน:</strong> ไม่สามารถตั้งค่า Charset เป็น utf8 ได้: " . $conn->error . "</p>";
+if (!$conn->set_charset("utf8mb4")) {
+    echo "<p style='color:orange;'><strong>คำเตือน:</strong> ไม่สามารถตั้งค่า Charset เป็น utf8mb4 ได้: " . $conn->error . "</p>";
 } else {
-    echo "<p><strong>สถานะ:</strong> ตั้งค่า Charset เป็น utf8 สำเร็จ</p>";
+    echo "<p><strong>สถานะ:</strong> ตั้งค่า Charset เป็น utf8mb4 สำเร็จ</p>";
 }
 
 // 4. เตรียมและรัน Query ที่ง่ายที่สุด

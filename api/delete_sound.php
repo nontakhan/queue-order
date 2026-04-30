@@ -19,8 +19,7 @@ if ($locationCode === '') {
 $conn = app_db();
 
 try {
-    $escapedLoc = $conn->real_escape_string($locationCode);
-    $result = $conn->query("SELECT sound_file FROM notification_sounds WHERE location_code = '{$escapedLoc}'");
+    $result = app_execute($conn, 'SELECT sound_file FROM notification_sounds WHERE location_code = ?', 's', [$locationCode]);
     if ($result && $result->num_rows > 0) {
         $row = $result->fetch_assoc();
         $filePath = dirname(__DIR__) . '/sounds/' . $row['sound_file'];
@@ -29,7 +28,7 @@ try {
         }
     }
 
-    $deleteResult = $conn->query("DELETE FROM notification_sounds WHERE location_code = '{$escapedLoc}'");
+    $deleteResult = app_execute($conn, 'DELETE FROM notification_sounds WHERE location_code = ?', 's', [$locationCode]);
     if (!$deleteResult) {
         throw new Exception('ลบข้อมูลไม่สำเร็จ: ' . $conn->error);
     }
@@ -38,5 +37,5 @@ try {
     app_json_response(['success' => true, 'message' => 'ลบเสียงแจ้งเตือนสำเร็จ']);
 } catch (Exception $e) {
     $conn->close();
-    app_json_response(['success' => false, 'message' => $e->getMessage()], 500);
+    app_error_response('Delete Error', 500, $e);
 }
