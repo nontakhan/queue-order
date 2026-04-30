@@ -161,7 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const colorClass = statusColors[selectedStatus] || 'bg-gray-100 text-gray-800';
         locationDisplay.innerHTML = `<div class="inline-flex items-center px-4 py-2 ${colorClass} rounded-lg shadow-sm"><svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg><div><span class="text-sm font-medium">คลัง</span><strong class="block text-xl font-bold">${locationName}</strong></div></div>`;
         
-        if (selectedStatus === 'เลื่อน' || selectedStatus === 'ยกเลิก') {
+        if (selectedStatus === 'รับแล้ว' || selectedStatus === 'เลื่อน' || selectedStatus === 'ยกเลิก') {
             manageHeaderCell.classList.remove('hidden');
         } else {
             manageHeaderCell.classList.add('hidden');
@@ -325,7 +325,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${deliveryInfo}</td>
             `;
             
-            if (selectedStatus === 'เลื่อน') {
+            if (selectedStatus === 'รับแล้ว') {
+                rowHTML += `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
+                        <div class="flex items-center justify-center space-x-2">
+                            <button type="button" class="update-btn ${actionButtonClass} bg-blue-100 text-blue-800 hover:bg-blue-200 focus:ring-blue-300" data-docno="${item.docno}" data-cdcode="${item.cd_code}" data-status="" data-action-label="ย้อนกลับไปรอรับ">ย้อนกลับ</button>
+                            <button type="button" class="delete-btn ${actionButtonClass} bg-red-500 text-white hover:bg-red-600 focus:ring-red-300" data-docno="${item.docno}" data-cdcode="${item.cd_code}">ลบ</button>
+                        </div>
+                    </td>`;
+            } else if (selectedStatus === 'เลื่อน') {
                 rowHTML += `
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
                         <div class="flex items-center justify-center space-x-2">
@@ -432,6 +440,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const handleUpdateStatus = async (button) => {
         const { docno, cdcode, status } = button.dataset;
+        const actionLabel = button.dataset.actionLabel || `เปลี่ยนสถานะเป็น "${status}"`;
+        const successMessage = status === '' ? 'ย้อนกลับไปรอรับเรียบร้อยแล้ว' : 'อัปเดตสถานะเรียบร้อยแล้ว';
         let receivedByEmployee = null;
 
         if (status === 'รับแล้ว') {
@@ -444,7 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         Swal.fire({ 
             title: 'ยืนยันการอัปเดต?', 
-            text: `เปลี่ยนสถานะ DocNo: ${docno} เป็น "${status}" ใช่หรือไม่?`, 
+            text: `ต้องการ${actionLabel} DocNo: ${docno} ใช่หรือไม่?`, 
             icon: 'question', 
             showCancelButton: true, 
             confirmButtonColor: '#16a34a', 
@@ -464,7 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const response = await fetch(API_UPDATE_STATUS, { method: 'POST', body: formData });
                     const resData = await response.json();
                     if (resData.success) {
-                        Swal.fire('สำเร็จ!', 'อัปเดตสถานะเรียบร้อยแล้ว', 'success');
+                        Swal.fire('สำเร็จ!', successMessage, 'success');
                         fetchItems(currentPage);
                     } else { throw new Error(resData.message || 'ไม่สามารถอัปเดตข้อมูลได้'); }
                 } catch (error) { Swal.fire('เกิดข้อผิดพลาด!', error.message, 'error'); }
