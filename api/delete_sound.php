@@ -22,8 +22,9 @@ try {
     $result = app_execute($conn, 'SELECT sound_file FROM notification_sounds WHERE location_code = ?', 's', [$locationCode]);
     if ($result && $result->num_rows > 0) {
         $row = $result->fetch_assoc();
-        $filePath = dirname(__DIR__) . '/sounds/' . $row['sound_file'];
-        if (is_file($filePath)) {
+        $soundFile = (string) $row['sound_file'];
+        $filePath = dirname(__DIR__) . '/sounds/' . $soundFile;
+        if (strpos($soundFile, '/') !== false && is_file($filePath)) {
             @unlink($filePath);
         }
     }

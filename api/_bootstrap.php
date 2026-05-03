@@ -9,9 +9,86 @@ function app_start_session(): void
     }
 }
 
+function app_db_profiles(): array
+{
+    $profilesFile = dirname(__DIR__) . '/db_profiles.php';
+    if (is_file($profilesFile)) {
+        $profiles = require $profilesFile;
+        if (is_array($profiles) && count($profiles) > 0) {
+            return $profiles;
+        }
+    }
+
+    global $db_host, $db_user, $db_pass, $db_name;
+
+    return [
+        'default' => [
+            'label' => 'Default',
+            'host' => $db_host,
+            'user' => $db_user,
+            'pass' => $db_pass,
+            'name' => $db_name,
+        ],
+    ];
+}
+
+function app_default_db_profile_key(): string
+{
+    $profiles = app_db_profiles();
+    return (string) array_key_first($profiles);
+}
+
+function app_current_db_profile_key(): string
+{
+    app_start_session();
+    $profiles = app_db_profiles();
+    $selectedKey = $_SESSION['db_profile'] ?? null;
+
+    if (is_string($selectedKey) && isset($profiles[$selectedKey])) {
+        return $selectedKey;
+    }
+
+    $defaultKey = app_default_db_profile_key();
+    $_SESSION['db_profile'] = $defaultKey;
+    return $defaultKey;
+}
+
+function app_current_db_profile(): array
+{
+    $profiles = app_db_profiles();
+    $key = app_current_db_profile_key();
+    return $profiles[$key];
+}
+
+function app_select_db_profile(string $key): array
+{
+    app_start_session();
+    $profiles = app_db_profiles();
+
+    if (!isset($profiles[$key])) {
+        app_json_response(['success' => false, 'message' => 'Invalid database profile'], 422);
+    }
+
+    $_SESSION['db_profile'] = $key;
+    return $profiles[$key];
+}
+
+function app_db_profile_payload(string $key, array $profile): array
+{
+    return [
+        'key' => $key,
+        'label' => $profile['label'] ?? $key,
+        'name' => $profile['name'] ?? '',
+    ];
+}
+
 function app_db(): mysqli
 {
-    global $db_host, $db_user, $db_pass, $db_name;
+    $profile = app_current_db_profile();
+    $db_host = $profile['host'] ?? '';
+    $db_user = $profile['user'] ?? '';
+    $db_pass = $profile['pass'] ?? '';
+    $db_name = $profile['name'] ?? '';
 
     $conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
     if ($conn->connect_error) {

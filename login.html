@@ -69,6 +69,13 @@
 
                         <form id="loginForm" class="space-y-4">
                             <div>
+                                <div class="mb-2 flex items-center justify-between">
+                                    <label class="block text-sm font-medium text-slate-700">ชุดข้อมูล</label>
+                                    <span id="dbProfileStatus" class="text-xs font-semibold text-emerald-600"></span>
+                                </div>
+                                <div id="dbProfileButtons" class="grid grid-cols-1 gap-2 sm:grid-cols-2"></div>
+                            </div>
+                            <div>
                                 <label for="username" class="mb-1 block text-sm font-medium text-slate-700">ชื่อผู้ใช้</label>
                                 <input id="username" name="username" type="text" required placeholder="กรอกชื่อผู้ใช้" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100">
                             </div>
@@ -84,10 +91,15 @@
                             <p class="mt-2 text-sm leading-6 text-slate-600">หน้านี้สำหรับผู้ดูแลระบบเท่านั้น ใช้เพื่อจัดการข้อมูลหลักของคลัง ผู้ใช้ พนักงาน และการตั้งค่าที่เกี่ยวข้องกับการทำงานประจำวันของระบบคิวตรวจรับ</p>
                         </div>
 
-                        <button id="backBtn" type="button" class="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-slate-700">
-                            <span aria-hidden="true">&larr;</span>
-                            <span>ย้อนกลับ</span>
-                        </button>
+                        <div class="mt-4 flex flex-col gap-2 sm:flex-row">
+                            <button id="homeBtn" type="button" class="inline-flex flex-1 items-center justify-center rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100">
+                                <span aria-hidden="true">&larr;</span>
+                                <span class="ml-2">กลับหน้าหลัก</span>
+                            </button>
+                            <button id="backBtn" type="button" class="inline-flex flex-1 items-center justify-center rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-200 hover:text-slate-800">
+                                <span>ย้อนกลับ</span>
+                            </button>
+                        </div>
                     </div>
                 </section>
             </div>
@@ -98,7 +110,63 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const form = document.getElementById('loginForm');
     const loginBtn = document.getElementById('loginBtn');
+    const homeBtn = document.getElementById('homeBtn');
     const backBtn = document.getElementById('backBtn');
+    const dbProfileButtons = document.getElementById('dbProfileButtons');
+    const dbProfileStatus = document.getElementById('dbProfileStatus');
+    let selectedDbProfile = '';
+
+    const renderDbProfileButtons = (profiles, currentProfile) => {
+        selectedDbProfile = currentProfile ? currentProfile.key : (profiles[0] ? profiles[0].key : '');
+        dbProfileStatus.textContent = currentProfile ? currentProfile.label : '';
+        dbProfileButtons.innerHTML = '';
+
+        profiles.forEach((profile) => {
+            const isActive = profile.key === selectedDbProfile;
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = isActive
+                ? 'rounded-2xl border-2 border-emerald-500 bg-emerald-50 px-4 py-3 text-left shadow-sm ring-4 ring-emerald-100 transition'
+                : 'rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition hover:border-emerald-300 hover:bg-white hover:shadow-sm';
+            button.innerHTML = `
+                <span class="block text-sm font-bold ${isActive ? 'text-emerald-700' : 'text-slate-800'}">${profile.label}</span>
+                <span class="mt-1 block text-xs ${isActive ? 'text-emerald-600' : 'text-slate-500'}">${profile.name || profile.key}</span>
+                <span class="mt-3 inline-flex rounded-full ${isActive ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'} px-3 py-1 text-xs font-semibold">${isActive ? 'เลือกอยู่' : 'เลือกชุดนี้'}</span>
+            `;
+            button.addEventListener('click', () => {
+                renderDbProfileButtons(profiles, profile);
+            });
+            dbProfileButtons.appendChild(button);
+        });
+    };
+
+    const loadDbProfiles = async () => {
+        const response = await fetch('./api/db_profiles.php', { credentials: 'same-origin' });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || 'โหลดชุดข้อมูลไม่สำเร็จ');
+        }
+
+        renderDbProfileButtons(result.data, result.current);
+    };
+
+    const selectDbProfile = async () => {
+        const formData = new FormData();
+        formData.append('profile', selectedDbProfile);
+        const response = await fetch('./api/select_db_profile.php', {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin'
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || 'เลือกชุดข้อมูลไม่สำเร็จ');
+        }
+    };
+
+    homeBtn.addEventListener('click', () => {
+        window.location.href = 'index.html';
+    });
 
     backBtn.addEventListener('click', () => {
         if (window.history.length > 1) {
@@ -109,6 +177,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     try {
+        await loadDbProfiles();
         const meResponse = await fetch('./api/auth_me.php', { credentials: 'same-origin' });
         const meResult = await meResponse.json();
         if (meResult.authenticated) {
@@ -125,6 +194,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         loginBtn.textContent = 'กำลังเข้าสู่ระบบ...';
 
         try {
+            await selectDbProfile();
             const response = await fetch('./api/auth_login.php', {
                 method: 'POST',
                 body: new FormData(form),

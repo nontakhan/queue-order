@@ -41,16 +41,28 @@ if (!is_writable($soundsDir)) {
     app_json_response(['success' => false, 'message' => 'โฟลเดอร์ sounds ไม่มีสิทธิ์เขียน'], 500);
 }
 
-$newFileName = 'sound_' . preg_replace('/[^a-zA-Z0-9_-]/', '_', $locationCode) . '_' . time() . '.' . $ext;
-$destPath = $soundsDir . $newFileName;
+$profileKey = preg_replace('/[^a-zA-Z0-9_-]/', '_', app_current_db_profile_key());
+$profileSoundsDir = $soundsDir . $profileKey . '/';
+if (!is_dir($profileSoundsDir) && !mkdir($profileSoundsDir, 0775, true) && !is_dir($profileSoundsDir)) {
+    app_json_response(['success' => false, 'message' => 'ไม่สามารถสร้างโฟลเดอร์เสียงของชุดข้อมูลได้'], 500);
+}
+
+if (!is_writable($profileSoundsDir)) {
+    app_json_response(['success' => false, 'message' => 'โฟลเดอร์เสียงของชุดข้อมูลไม่มีสิทธิ์เขียน'], 500);
+}
+
+$newBaseName = 'sound_' . preg_replace('/[^a-zA-Z0-9_-]/', '_', $locationCode) . '_' . time() . '.' . $ext;
+$newFileName = $profileKey . '/' . $newBaseName;
+$destPath = $profileSoundsDir . $newBaseName;
 $conn = app_db();
 
 try {
     $oldResult = app_execute($conn, 'SELECT sound_file FROM notification_sounds WHERE location_code = ?', 's', [$locationCode]);
     if ($oldResult && $oldResult->num_rows > 0) {
         $oldRow = $oldResult->fetch_assoc();
-        $oldFile = $soundsDir . $oldRow['sound_file'];
-        if (is_file($oldFile)) {
+        $oldSoundFile = (string) $oldRow['sound_file'];
+        $oldFile = $soundsDir . $oldSoundFile;
+        if (strpos($oldSoundFile, '/') !== false && is_file($oldFile)) {
             @unlink($oldFile);
         }
     }

@@ -42,6 +42,7 @@
                 <p class="mt-4 max-w-3xl text-sm leading-7 text-slate-300">จัดการคลัง ผู้ใช้ พนักงานประจำคลัง และเสียงแจ้งเตือนจากหน้าเดียว พร้อมค้นหาและแบ่งหน้ารายการได้สะดวกขึ้น</p>
             </div>
             <div class="mt-4 flex gap-3 md:mt-0">
+                <button id="changeDbProfileBtn" type="button" class="rounded-2xl bg-emerald-400/20 px-4 py-3 font-semibold text-emerald-100 transition hover:bg-emerald-400/30">ชุดข้อมูล</button>
                 <a href="index.html" class="rounded-2xl bg-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/15">กลับหน้าหลัก</a>
                 <button id="logoutBtn" type="button" class="rounded-2xl bg-red-400/20 px-4 py-3 font-semibold text-red-100 transition hover:bg-red-400/30">ออกจากระบบ</button>
             </div>
@@ -130,6 +131,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const endpoints = {
         me: './api/auth_me.php', logout: './api/auth_logout.php',
+        dbProfiles: './api/db_profiles.php', selectDbProfile: './api/select_db_profile.php',
         locations: './api/admin_get_locations.php', saveLocation: './api/admin_save_location.php', deleteLocation: './api/admin_delete_location.php',
         users: './api/admin_get_users.php', saveUser: './api/admin_save_user.php', deleteUser: './api/admin_delete_user.php',
         employees: './api/admin_get_employees.php', saveEmployee: './api/admin_save_employee.php', deleteEmployee: './api/admin_delete_employee.php',
@@ -149,6 +151,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const soundLocationCode = document.getElementById('soundLocationCode');
     const soundFileInput = document.getElementById('soundFile');
     const uploadSoundBtn = document.getElementById('uploadSoundBtn');
+    const changeDbProfileBtn = document.getElementById('changeDbProfileBtn');
     let currentAudio = null;
 
     const dtLang = {
@@ -198,6 +201,72 @@ document.addEventListener('DOMContentLoaded', async () => {
             window.location.href = 'index.html';
             throw new Error('Forbidden');
         }
+        if (result.db_profile) {
+            changeDbProfileBtn.textContent = `ชุดข้อมูล: ${result.db_profile.label}`;
+        }
+    };
+
+    const showDbProfilePicker = async (profiles, currentProfile) => {
+        return new Promise((resolve) => {
+            let selectedProfileKey = null;
+            const buttonsHtml = profiles.map((profile) => {
+                const active = currentProfile && profile.key === currentProfile.key;
+                const activeClasses = active
+                    ? 'border-emerald-500 bg-emerald-50 ring-4 ring-emerald-100'
+                    : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50';
+                const labelClass = active ? 'text-emerald-700' : 'text-slate-900';
+                const nameClass = active ? 'text-emerald-600' : 'text-slate-500';
+
+                const inlineStyle = active
+                    ? 'border:2px solid #10b981;background:#ecfdf5;box-shadow:0 0 0 4px #d1fae5;'
+                    : 'border:2px solid #e2e8f0;background:#ffffff;';
+                const actionStyle = active
+                    ? 'background:#059669;color:#ffffff;'
+                    : 'background:#e2e8f0;color:#334155;';
+
+                return `
+                    <button type="button" data-db-profile="${profile.key}" class="db-profile-choice rounded-2xl p-4 text-left shadow-sm transition" style="${inlineStyle} width:100%; cursor:pointer;">
+                        <span class="block text-base font-bold ${labelClass}">${profile.label}</span>
+                        <span class="mt-1 block text-xs ${nameClass}">${profile.name || profile.key}</span>
+                        <span class="mt-3 inline-flex rounded-full px-3 py-1 text-xs font-semibold" style="${actionStyle}">${active ? 'กำลังใช้งาน' : 'เลือกชุดนี้'}</span>
+                    </button>
+                `;
+            }).join('');
+
+            Swal.fire({
+                title: 'เลือกชุดข้อมูล',
+                html: `<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">${buttonsHtml}</div>`,
+                showConfirmButton: false,
+                showCancelButton: true,
+                cancelButtonText: 'ยกเลิก',
+                width: '42rem',
+                didOpen: () => {
+                    document.querySelectorAll('.db-profile-choice').forEach((button) => {
+                        button.addEventListener('click', () => {
+                            selectedProfileKey = button.dataset.dbProfile;
+                            Swal.close();
+                        });
+                    });
+                },
+                willClose: () => resolve(selectedProfileKey)
+            });
+        });
+    };
+
+    const chooseDbProfile = async () => {
+        const response = await fetch(endpoints.dbProfiles, { credentials: 'same-origin' });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || 'โหลดชุดข้อมูลไม่สำเร็จ');
+
+        const selectedKey = await showDbProfilePicker(result.data, result.current);
+        if (!selectedKey) return false;
+
+        const formData = new FormData();
+        formData.append('profile', selectedKey);
+        const selectResponse = await fetch(endpoints.selectDbProfile, { method: 'POST', body: formData, credentials: 'same-origin' });
+        const selectResult = await selectResponse.json();
+        if (!selectResponse.ok || !selectResult.success) throw new Error(selectResult.message || 'เลือกชุดข้อมูลไม่สำเร็จ');
+        return true;
     };
 
     const fillLocationSelects = (locations) => {
@@ -280,6 +349,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     logoutBtn.addEventListener('click', async () => {
         await fetch(endpoints.logout, { method: 'POST', credentials: 'same-origin' });
         window.location.href = 'login.html';
+    });
+    changeDbProfileBtn.addEventListener('click', async () => {
+        try {
+            const changed = await chooseDbProfile();
+            if (changed) {
+                window.location.reload();
+            }
+        } catch (error) {
+            await Swal.fire('ผิดพลาด', error.message, 'error');
+        }
     });
 
     locationForm.addEventListener('submit', async (event) => {

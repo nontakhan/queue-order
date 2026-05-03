@@ -106,6 +106,7 @@
                     </a>
                     <button id="soundToggleBtn" class="px-4 py-2 rounded-lg text-sm font-semibold transition hidden" title="เปิด/ปิดเสียงแจ้งเตือน"></button>
                     <a href="admin.html#sound-settings" id="soundAdminLink" class="bg-purple-100 text-purple-800 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-purple-200 transition hidden flex items-center"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>ตั้งค่าเสียง</a>
+                    <button id="changeDbProfileBtn" class="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-slate-800 transition">ชุดข้อมูล</button>
                     <button id="changeLocationBtn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-300 transition hidden">เปลี่ยนคลัง</button>
                 </div>
             </div></div>
@@ -192,6 +193,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_GET_SOUNDS = './api/get_sounds.php';
     const API_GET_LOCATION_EMPLOYEES = './api/get_location_employees.php';
     const API_AUTH_ME = './api/auth_me.php';
+    const API_DB_PROFILES = './api/db_profiles.php';
+    const API_SELECT_DB_PROFILE = './api/select_db_profile.php';
     
     let selectedLocationInfo = null;
     let currentPage = 1;
@@ -204,6 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let locationSoundMap = {};
     let locationEmployeesMap = {};
     let currentUser = null;
+    let currentDbProfile = null;
     const EXCLUDED_CUSTOMER_KEYWORD = 'นำรุ่งเคหะภัณฑ์สำนักงานใหญ่';
 
     const normalizeCustomerName = (value = '') => value
@@ -247,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
         historyGroup.appendChild(historyRow);
         historyRow.appendChild(historyButtonsEl);
 
-        ['reportsLink', 'adminEntryLink', 'soundToggleBtn', 'changeLocationBtn'].forEach((id) => {
+        ['reportsLink', 'adminEntryLink', 'soundToggleBtn', 'changeDbProfileBtn', 'changeLocationBtn'].forEach((id) => {
             const element = document.getElementById(id);
             if (!element) return;
 
@@ -255,6 +259,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 element.classList.add('rounded-xl');
             }
             if (id === 'changeLocationBtn') {
+                element.classList.add('rounded-xl');
+            }
+            if (id === 'changeDbProfileBtn') {
                 element.classList.add('rounded-xl');
             }
             if (id === 'reportsLink') {
@@ -274,6 +281,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const response = await fetch(API_AUTH_ME, { credentials: 'same-origin' });
         const result = await response.json();
         currentUser = result.authenticated ? result.user : null;
+        currentDbProfile = result.db_profile || null;
+        if (currentDbProfile) {
+            document.getElementById('changeDbProfileBtn').textContent = currentDbProfile.label;
+        }
 
         if (!document.getElementById('adminEntryLink')) {
             const adminLink = document.createElement('a');
@@ -298,6 +309,96 @@ document.addEventListener('DOMContentLoaded', () => {
         if (utilityRow && adminEntryLink.parentElement !== utilityRow) {
             utilityRow.insertBefore(adminEntryLink, document.getElementById('soundToggleBtn'));
         }
+    };
+
+    const clearSelectedLocation = () => {
+        if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+        previousPendingCount = null;
+        notificationSoundUrl = null;
+        selectedLocationInfo = null;
+        localStorage.removeItem('selectedLocation');
+    };
+
+    const showDbProfilePicker = async (profiles, currentProfile, force = false) => {
+        return new Promise((resolve) => {
+            let selectedProfileKey = null;
+            const buttonsHtml = profiles.map((profile) => {
+                const active = currentProfile && profile.key === currentProfile.key;
+                const activeClasses = active
+                    ? 'border-emerald-500 bg-emerald-50 ring-4 ring-emerald-100'
+                    : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50';
+                const labelClass = active ? 'text-emerald-700' : 'text-slate-900';
+                const nameClass = active ? 'text-emerald-600' : 'text-slate-500';
+
+                const inlineStyle = active
+                    ? 'border:2px solid #10b981;background:#ecfdf5;box-shadow:0 0 0 4px #d1fae5;'
+                    : 'border:2px solid #e2e8f0;background:#ffffff;';
+                const actionStyle = active
+                    ? 'background:#059669;color:#ffffff;'
+                    : 'background:#e2e8f0;color:#334155;';
+
+                return `
+                    <button type="button" data-db-profile="${profile.key}" class="db-profile-choice rounded-2xl p-4 text-left shadow-sm transition" style="${inlineStyle} width:100%; cursor:pointer;">
+                        <span class="block text-base font-bold ${labelClass}">${profile.label}</span>
+                        <span class="mt-1 block text-xs ${nameClass}">${profile.name || profile.key}</span>
+                        <span class="mt-3 inline-flex rounded-full px-3 py-1 text-xs font-semibold" style="${actionStyle}">${active ? 'กำลังใช้งาน' : 'เลือกชุดนี้'}</span>
+                    </button>
+                `;
+            }).join('');
+
+            Swal.fire({
+                title: 'เลือกชุดข้อมูล',
+                html: `<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">${buttonsHtml}</div>`,
+                showConfirmButton: false,
+                showCancelButton: !force,
+                cancelButtonText: 'ยกเลิก',
+                width: '42rem',
+                allowOutsideClick: !force,
+                allowEscapeKey: !force,
+                didOpen: () => {
+                    document.querySelectorAll('.db-profile-choice').forEach((button) => {
+                        button.addEventListener('click', () => {
+                            selectedProfileKey = button.dataset.dbProfile;
+                            Swal.close();
+                        });
+                    });
+                },
+                willClose: () => resolve(selectedProfileKey)
+            });
+        });
+    };
+
+    const chooseDbProfile = async (force = false) => {
+        const response = await fetch(API_DB_PROFILES, { credentials: 'same-origin' });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || 'โหลดชุดข้อมูลไม่สำเร็จ');
+        }
+
+        currentDbProfile = result.current;
+        if (!force && result.selected && result.current) {
+            return result.current;
+        }
+
+        const selectedKey = await showDbProfilePicker(result.data, result.current, force);
+        if (!selectedKey) {
+            return result.current;
+        }
+
+        const formData = new FormData();
+        formData.append('profile', selectedKey);
+        const selectResponse = await fetch(API_SELECT_DB_PROFILE, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin'
+        });
+        const selectResult = await selectResponse.json();
+        if (!selectResponse.ok || !selectResult.success) {
+            throw new Error(selectResult.message || 'เลือกชุดข้อมูลไม่สำเร็จ');
+        }
+
+        currentDbProfile = selectResult.current;
+        return currentDbProfile;
     };
 
     // --- ฟังก์ชันต่างๆ ---
@@ -476,7 +577,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const selectLocation = async (locationObject) => {
         selectedLocationInfo = locationObject;
-        sessionStorage.setItem('selectedLocation', JSON.stringify(locationObject)); 
+        localStorage.setItem('selectedLocation', JSON.stringify(locationObject)); 
         
         locationModal.style.display = 'none';
         mainContent.classList.remove('hidden');
@@ -921,7 +1022,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // Unlock AudioContext เมื่อผู้ใช้โต้ตอบครั้งแรก (สำหรับกรณี refresh / sessionStorage)
+    // Unlock AudioContext เมื่อผู้ใช้โต้ตอบครั้งแรก (สำหรับกรณี refresh / localStorage)
     const unlockAudioOnInteraction = () => {
         if (!audioContext) {
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -939,10 +1040,15 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('keydown', unlockAudioOnInteraction);
 
     const initializeAppState = () => {
-        const savedLocation = sessionStorage.getItem('selectedLocation');
+        const savedLocation = localStorage.getItem('selectedLocation');
         if (savedLocation) {
             locationModal.style.display = 'none';
-            selectLocation(JSON.parse(savedLocation));
+            try {
+                selectLocation(JSON.parse(savedLocation));
+            } catch (error) {
+                localStorage.removeItem('selectedLocation');
+                initializeAppState();
+            }
         } else {
             locationModal.style.display = 'flex';
             mainContent.classList.add('hidden');
@@ -993,11 +1099,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     changeLocationBtn.addEventListener('click', () => {
-        if (autoRefreshInterval) clearInterval(autoRefreshInterval);
-        previousPendingCount = null;
-        notificationSoundUrl = null;
-        sessionStorage.removeItem('selectedLocation');
+        clearSelectedLocation();
         initializeAppState();
+    });
+
+    document.getElementById('changeDbProfileBtn').addEventListener('click', async () => {
+        try {
+            const previousKey = currentDbProfile ? currentDbProfile.key : null;
+            const selectedProfile = await chooseDbProfile(true);
+            if (selectedProfile && selectedProfile.key !== previousKey) {
+                clearSelectedLocation();
+                await loadCurrentUser();
+                initializeAppState();
+            }
+        } catch (error) {
+            await Swal.fire('ผิดพลาด', error.message, 'error');
+        }
     });
 
     window.addEventListener('pageshow', function(event) {
@@ -1018,7 +1135,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Initial Load ---
     organizeHeaderControls();
-    loadCurrentUser().catch(console.error).finally(() => {
+    chooseDbProfile(false).catch(console.error).then(() => loadCurrentUser()).catch(console.error).finally(() => {
         initializeAppState();
     });
 });
