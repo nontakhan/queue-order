@@ -199,6 +199,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedLocationInfo = null;
     let currentPage = 1;
     let currentSearchTerm = '';
+    const ITEMS_PER_PAGE = 15;
+    let filteredItemsCache = [];
     let autoRefreshInterval = null;
     let previousPendingCount = null;
     let notificationSoundUrl = null;
@@ -744,7 +746,8 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const params = new URLSearchParams({
                 search: searchTerm,
-                page: page,
+                page: 1,
+                limit: 5000,
                 location: selectedLocationInfo.location_code,
                 startDate: startDate,
                 endDate: endDate
@@ -755,10 +758,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const result = await response.json();
-            const filteredItems = result.success ? result.data.filter(item => !isExcludedCustomer(item.customer_name || '')) : [];
-            if (result.success && filteredItems.length > 0) {
-                renderTable(filteredItems);
-                renderPagination(result.pagination);
+            filteredItemsCache = result.success ? result.data.filter(item => !isExcludedCustomer(item.customer_name || '')) : [];
+            if (result.success && filteredItemsCache.length > 0) {
+                renderCurrentPage(page);
             } else {
                 showNoData(searchTerm || startDate || endDate ? `ไม่พบรายการตามเงื่อนไขที่กำหนด` : 'ไม่มีรายการที่รอตรวจรับในคลังนี้');
             }
@@ -823,6 +825,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 </td>
             `;
             tableBody.appendChild(row);
+        });
+    };
+
+    const renderCurrentPage = (page = 1) => {
+        if (filteredItemsCache.length === 0) {
+            showNoData(currentSearchTerm || startDateInput.value || endDateInput.value ? `ไม่พบรายการตามเงื่อนไขที่กำหนด` : 'ไม่มีรายการที่รอตรวจรับในคลังนี้');
+            return;
+        }
+
+        const totalItems = filteredItemsCache.length;
+        const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+        const safePage = Math.min(Math.max(page, 1), totalPages);
+        currentPage = safePage;
+        const startIndex = (safePage - 1) * ITEMS_PER_PAGE;
+        const pageItems = filteredItemsCache.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+        renderTable(pageItems);
+        renderPagination({
+            current_page: safePage,
+            total_pages: totalPages,
+            total_items: totalItems,
+            items_per_page: ITEMS_PER_PAGE
         });
     };
 
@@ -904,7 +928,8 @@ document.addEventListener('DOMContentLoaded', () => {
         prevButton.innerHTML = '&laquo;';
         prevButton.className = 'px-3 py-1 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50';
         if (current_page === 1) prevButton.disabled = true;
-        prevButton.addEventListener('click', () => fetchItems(current_page - 1));
+        prevButton.type = 'button';
+        prevButton.addEventListener('click', () => renderCurrentPage(current_page - 1));
         buttonsContainer.appendChild(prevButton);
         const pageInfo = document.createElement('span');
         pageInfo.className = 'px-3 py-1 text-sm font-semibold text-gray-700';
@@ -914,7 +939,8 @@ document.addEventListener('DOMContentLoaded', () => {
         nextButton.innerHTML = '&raquo;';
         nextButton.className = 'px-3 py-1 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50';
         if (current_page >= total_pages) nextButton.disabled = true;
-        nextButton.addEventListener('click', () => fetchItems(current_page + 1));
+        nextButton.type = 'button';
+        nextButton.addEventListener('click', () => renderCurrentPage(current_page + 1));
         buttonsContainer.appendChild(nextButton);
         paginationControls.appendChild(buttonsContainer);
     };
