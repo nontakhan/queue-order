@@ -68,11 +68,11 @@ function setup_partial_receive_schema(mysqli $conn): array
     execute_sql($conn, "
         CREATE TABLE IF NOT EXISTS item_receive_history (
             id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-            docno VARCHAR(100),
-            cd_code VARCHAR(100),
-            received_qty DECIMAL(15,3),
-            received_by_employee VARCHAR(255),
-            received_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            docno VARCHAR(100) NOT NULL,
+            cd_code VARCHAR(100) NOT NULL,
+            received_qty DECIMAL(15,3) NOT NULL,
+            received_by_employee VARCHAR(255) NOT NULL,
+            received_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             note VARCHAR(500),
             INDEX idx_receive_history_item (docno, cd_code),
             INDEX idx_receive_history_received_at (received_at)
