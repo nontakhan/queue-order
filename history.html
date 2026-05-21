@@ -471,7 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
             row.className = `${groupColors[colorIndex]} hover:bg-yellow-100 transition-colors duration-200 item-row`;
             row.dataset.docno = item.docno;
             row.dataset.cdcode = item.cd_code;
-            row.dataset.unit = item.unit;
+            row.dataset.unit = item.unit || '';
             row.dataset.price = item.UNITPRICE || '0';
             row.dataset.qty = item.qty || '0';
             row.dataset.receivedQty = item.received_qty_total || '0';
@@ -609,13 +609,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const handleUpdateStatus = async (button) => {
         const { docno, cdcode, status } = button.dataset;
+        const row = button.closest('tr');
         const actionLabel = button.dataset.actionLabel || `เปลี่ยนสถานะเป็น "${status}"`;
         const successMessage = status === '' ? 'ย้อนกลับไปรอรับเรียบร้อยแล้ว' : 'อัปเดตสถานะเรียบร้อยแล้ว';
         let receivedByEmployee = null;
         let receivedQty = null;
 
         if (status === 'รับแล้ว') {
-            const row = button.closest('tr');
             const totalQty = parseFloat(row?.dataset.qty || 0);
             const currentReceivedQty = parseFloat(row?.dataset.receivedQty || 0);
             const safeTotalQty = Number.isFinite(totalQty) ? totalQty : 0;
@@ -664,6 +664,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     formData.append('docno', docno);
                     formData.append('cd_code', cdcode);
                     formData.append('new_status', status);
+                    formData.append('unit', row?.dataset.unit || '');
+                    formData.append('price', row?.dataset.price || '');
                     if (receivedByEmployee) {
                         formData.append('received_by_employee', receivedByEmployee);
                     }

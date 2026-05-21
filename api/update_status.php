@@ -39,27 +39,51 @@ function parse_receive_quantity(?string $value): ?float
     return (float)$normalized;
 }
 
+function parse_optional_price(?string $value): ?float
+{
+    if ($value === null || trim($value) === '') {
+        return null;
+    }
+
+    $normalized = str_replace(',', '', trim($value));
+    if (!is_numeric($normalized)) {
+        throw new Exception('Invalid price.');
+    }
+
+    return (float)$normalized;
+}
+
 function handle_receive_status_update(
     mysqli $conn,
     string $docno,
     string $cdCode,
+    string $unit,
+    ?float $unitPrice,
     string $receivedByEmployee,
     ?float $receivedQty
 ): void {
     $conn->begin_transaction();
 
     try {
-        $stmt = $conn->prepare(
-            'SELECT qty, COALESCE(received_qty_total, 0) AS received_qty_total
+        $hasFullIdentity = $unit !== '' && $unitPrice !== null;
+        $selectSql = 'SELECT qty, COALESCE(received_qty_total, 0) AS received_qty_total
             FROM transfer_data_from_mssql
-            WHERE docno = ? AND cd_code = ?
-            FOR UPDATE'
-        );
+            WHERE docno = ? AND cd_code = ?';
+        if ($hasFullIdentity) {
+            $selectSql .= ' AND Lname_unit = ? AND UNITPRICE = ?';
+        }
+        $selectSql .= ' FOR UPDATE';
+
+        $stmt = $conn->prepare($selectSql);
         if ($stmt === false) {
             throw new Exception('Failed to prepare statement: ' . $conn->error);
         }
 
-        $stmt->bind_param('ss', $docno, $cdCode);
+        if ($hasFullIdentity) {
+            $stmt->bind_param('sssd', $docno, $cdCode, $unit, $unitPrice);
+        } else {
+            $stmt->bind_param('ss', $docno, $cdCode);
+        }
         $stmt->execute();
         $result = $stmt->get_result();
         $row = $result->fetch_assoc();
@@ -87,32 +111,50 @@ function handle_receive_status_update(
             ? app_status_received()
             : app_status_partial_received();
 
-        $stmt = $conn->prepare(
-            'INSERT INTO item_receive_history (docno, cd_code, received_qty, received_by_employee)
-            VALUES (?, ?, ?, ?)'
-        );
+        if ($hasFullIdentity) {
+            $stmt = $conn->prepare(
+                'INSERT INTO item_receive_history (docno, cd_code, lname_unit, unitprice, received_qty, received_by_employee)
+                VALUES (?, ?, ?, ?, ?, ?)'
+            );
+        } else {
+            $stmt = $conn->prepare(
+                'INSERT INTO item_receive_history (docno, cd_code, received_qty, received_by_employee)
+                VALUES (?, ?, ?, ?)'
+            );
+        }
         if ($stmt === false) {
             throw new Exception('Failed to prepare statement: ' . $conn->error);
         }
 
-        $stmt->bind_param('ssds', $docno, $cdCode, $qtyToReceive, $receivedByEmployee);
+        if ($hasFullIdentity) {
+            $stmt->bind_param('sssdds', $docno, $cdCode, $unit, $unitPrice, $qtyToReceive, $receivedByEmployee);
+        } else {
+            $stmt->bind_param('ssds', $docno, $cdCode, $qtyToReceive, $receivedByEmployee);
+        }
         $stmt->execute();
         $stmt->close();
 
-        $stmt = $conn->prepare(
-            'UPDATE transfer_data_from_mssql
+        $updateSql = 'UPDATE transfer_data_from_mssql
             SET delivery_status = ?,
                 delivery_remark = NULL,
                 received_by_employee = ?,
                 received_qty_total = ?,
                 received_count = received_count + 1
-            WHERE docno = ? AND cd_code = ?'
-        );
+            WHERE docno = ? AND cd_code = ?';
+        if ($hasFullIdentity) {
+            $updateSql .= ' AND Lname_unit = ? AND UNITPRICE = ?';
+        }
+
+        $stmt = $conn->prepare($updateSql);
         if ($stmt === false) {
             throw new Exception('Failed to prepare statement: ' . $conn->error);
         }
 
-        $stmt->bind_param('ssdss', $newStatus, $receivedByEmployee, $newReceivedQty, $docno, $cdCode);
+        if ($hasFullIdentity) {
+            $stmt->bind_param('ssdsssd', $newStatus, $receivedByEmployee, $newReceivedQty, $docno, $cdCode, $unit, $unitPrice);
+        } else {
+            $stmt->bind_param('ssdss', $newStatus, $receivedByEmployee, $newReceivedQty, $docno, $cdCode);
+        }
         $stmt->execute();
         $stmt->close();
 
@@ -134,13 +176,15 @@ try {
     $remark = isset($_POST['remark']) ? trim($_POST['remark']) : null;
     $receivedByEmployee = isset($_POST['received_by_employee']) ? trim($_POST['received_by_employee']) : null;
     $receivedQty = parse_receive_quantity($_POST['received_qty'] ?? null);
+    $unit = isset($_POST['unit']) ? trim((string)$_POST['unit']) : '';
+    $unitPrice = parse_optional_price($_POST['price'] ?? null);
 
     if ($newStatus === app_status_received()) {
         if ($receivedByEmployee === null || $receivedByEmployee === '') {
             throw new Exception('Missing receiving employee.');
         }
 
-        handle_receive_status_update($conn, $docno, $cdCode, $receivedByEmployee, $receivedQty);
+        handle_receive_status_update($conn, $docno, $cdCode, $unit, $unitPrice, $receivedByEmployee, $receivedQty);
         $conn->close();
 
         app_json_response(['success' => true, 'message' => 'Receive status updated successfully.']);
@@ -160,11 +204,25 @@ try {
 
     $setClauses[] = 'received_by_employee = NULL';
 
+    if ($newStatus !== app_status_received() && $newStatus !== app_status_partial_received()) {
+        $setClauses[] = 'received_qty_total = 0';
+        $setClauses[] = 'received_count = 0';
+    }
+
+    $whereClauses = ['docno = ?', 'cd_code = ?'];
     $params[] = $docno;
     $params[] = $cdCode;
     $types .= 'ss';
 
-    $sql = 'UPDATE transfer_data_from_mssql SET ' . implode(', ', $setClauses) . ' WHERE docno = ? AND cd_code = ?';
+    if ($unit !== '' && $unitPrice !== null) {
+        $whereClauses[] = 'Lname_unit = ?';
+        $whereClauses[] = 'UNITPRICE = ?';
+        $params[] = $unit;
+        $params[] = $unitPrice;
+        $types .= 'sd';
+    }
+
+    $sql = 'UPDATE transfer_data_from_mssql SET ' . implode(', ', $setClauses) . ' WHERE ' . implode(' AND ', $whereClauses);
     $stmt = $conn->prepare($sql);
     if ($stmt === false) {
         throw new Exception('Failed to prepare statement: ' . $conn->error);

@@ -1122,12 +1122,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleUpdateStatus = async (button) => {
         if (!button) return;
         const { docno, cdcode, status } = button.dataset;
+        const row = button.closest('tr');
         let remark = null;
         let receivedByEmployee = null;
         let receivedQty = null;
 
         if (status === 'รับแล้ว') {
-            const row = button.closest('tr');
             const totalQty = parseFloat(row?.dataset.qty || 0);
             const currentReceivedQty = parseFloat(row?.dataset.receivedQty || 0);
             const safeTotalQty = Number.isFinite(totalQty) ? totalQty : 0;
@@ -1232,6 +1232,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     formData.append('docno', docno);
                     formData.append('cd_code', cdcode);
                     formData.append('new_status', status);
+                    formData.append('unit', row?.dataset.unit || '');
+                    formData.append('price', row?.dataset.price || '');
                     if (remark) { 
                         formData.append('remark', remark); 
                     }

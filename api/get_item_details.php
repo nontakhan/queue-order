@@ -33,17 +33,16 @@ try {
         app_json_response(['success' => false, 'message' => 'Item not found.']);
     }
 
-    // Receive history currently follows the same docno/cd_code identity used by status updates; unit/price-specific identity will be supplied by the receive flow when schema/API are expanded.
     $historySql = 'SELECT id, received_qty, received_by_employee, received_at, note
                    FROM item_receive_history
-                   WHERE docno = ? AND cd_code = ?
+                   WHERE docno = ? AND cd_code = ? AND lname_unit = ? AND unitprice = ?
                    ORDER BY received_at ASC, id ASC';
     $historyStmt = $conn->prepare($historySql);
     if ($historyStmt === false) {
         throw new Exception('History prepare failed: ' . $conn->error);
     }
 
-    $historyStmt->bind_param('ss', $_GET['docno'], $_GET['cd_code']);
+    $historyStmt->bind_param('sssd', $_GET['docno'], $_GET['cd_code'], $_GET['unit'], $_GET['price']);
     $historyStmt->execute();
     $historyResult = $historyStmt->get_result();
     $item['receive_history'] = [];
@@ -52,6 +51,26 @@ try {
     }
     $historyStmt->close();
     $historyStmt = null;
+
+    if (count($item['receive_history']) === 0) {
+        $historySql = 'SELECT id, received_qty, received_by_employee, received_at, note
+                       FROM item_receive_history
+                       WHERE docno = ? AND cd_code = ? AND lname_unit IS NULL AND unitprice IS NULL
+                       ORDER BY received_at ASC, id ASC';
+        $historyStmt = $conn->prepare($historySql);
+        if ($historyStmt === false) {
+            throw new Exception('History prepare failed: ' . $conn->error);
+        }
+
+        $historyStmt->bind_param('ss', $_GET['docno'], $_GET['cd_code']);
+        $historyStmt->execute();
+        $historyResult = $historyStmt->get_result();
+        while ($historyRow = $historyResult->fetch_assoc()) {
+            $item['receive_history'][] = $historyRow;
+        }
+        $historyStmt->close();
+        $historyStmt = null;
+    }
     $conn->close();
     $conn = null;
 

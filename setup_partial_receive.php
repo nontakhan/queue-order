@@ -70,6 +70,8 @@ function setup_partial_receive_schema(mysqli $conn): array
             id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             docno VARCHAR(100) NOT NULL,
             cd_code VARCHAR(100) NOT NULL,
+            lname_unit VARCHAR(100) NULL,
+            unitprice DECIMAL(15,4) NULL,
             received_qty DECIMAL(15,3) NOT NULL,
             received_by_employee VARCHAR(255) NOT NULL,
             received_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -79,6 +81,18 @@ function setup_partial_receive_schema(mysqli $conn): array
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
     $messages[] = 'ตาราง item_receive_history พร้อมใช้งาน';
+
+    if (add_column_if_missing($conn, 'item_receive_history', 'lname_unit', 'VARCHAR(100) NULL', 'cd_code')) {
+        $messages[] = 'Added item_receive_history.lname_unit';
+    } else {
+        $messages[] = 'item_receive_history.lname_unit already exists';
+    }
+
+    if (add_column_if_missing($conn, 'item_receive_history', 'unitprice', 'DECIMAL(15,4) NULL', 'lname_unit')) {
+        $messages[] = 'Added item_receive_history.unitprice';
+    } else {
+        $messages[] = 'item_receive_history.unitprice already exists';
+    }
 
     if (add_column_if_missing($conn, 'transfer_data_from_mssql', 'received_by_employee', 'VARCHAR(255) NULL', 'delivery_remark')) {
         $messages[] = 'เพิ่มคอลัมน์ received_by_employee แล้ว';
