@@ -577,6 +577,121 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    const formatQty = (value) => {
+        const number = parseFloat(value);
+        if (!Number.isFinite(number)) {
+            return '0';
+        }
+        return Number.isInteger(number)
+            ? number.toLocaleString()
+            : number.toLocaleString(undefined, { maximumFractionDigits: 3 });
+    };
+
+    const buildReceiveProgressHTML = (item) => {
+        const totalQty = parseFloat(item.qty || 0);
+        const receivedQty = parseFloat(item.received_qty_total || 0);
+        if (!Number.isFinite(totalQty) || !Number.isFinite(receivedQty) || receivedQty <= 0) {
+            return '';
+        }
+
+        const unit = item.unit || '';
+        const progressPercent = totalQty > 0 ? Math.min(100, (receivedQty / totalQty) * 100) : 100;
+
+        return `
+            <div class="mt-2 min-w-[10rem]">
+                <div class="mb-1 text-xs font-semibold text-green-700">รับแล้ว ${formatQty(receivedQty)} / ${formatQty(totalQty)} ${unit}</div>
+                <div class="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                    <div class="h-full rounded-full bg-green-500" style="width: ${progressPercent}%"></div>
+                </div>
+            </div>
+        `;
+    };
+
+    const promptReceiveQuantity = async ({ totalQty, receivedQty, unit }) => {
+        const total = parseFloat(totalQty || 0);
+        const received = parseFloat(receivedQty || 0);
+        const safeTotal = Number.isFinite(total) ? total : 0;
+        const safeReceived = Number.isFinite(received) ? received : 0;
+        const remaining = Math.max(0, safeTotal - safeReceived);
+        const rawRemaining = Number.isInteger(remaining) ? String(remaining) : String(parseFloat(remaining.toFixed(3)));
+        const unitLabel = unit || '';
+
+        const { value } = await Swal.fire({
+            title: 'ระบุจำนวนที่รับ',
+            html: `
+                <div class="space-y-4 text-left">
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div class="rounded-xl bg-slate-50 p-3">
+                            <div class="text-xs text-slate-500">ทั้งหมด</div>
+                            <div class="text-lg font-bold text-slate-800">${formatQty(safeTotal)} ${unitLabel}</div>
+                        </div>
+                        <div class="rounded-xl bg-green-50 p-3">
+                            <div class="text-xs text-green-700">รับแล้ว</div>
+                            <div class="text-lg font-bold text-green-800">${formatQty(safeReceived)} ${unitLabel}</div>
+                        </div>
+                        <div class="rounded-xl bg-yellow-50 p-3">
+                            <div class="text-xs text-yellow-700">คงเหลือ</div>
+                            <div class="text-lg font-bold text-yellow-800">${formatQty(remaining)} ${unitLabel}</div>
+                        </div>
+                    </div>
+                    <input id="receiveQtyInput" type="text" inputmode="decimal" class="w-full rounded-xl border border-green-200 px-4 py-3 text-right text-2xl font-bold text-slate-800 focus:border-green-500 focus:outline-none" value="${rawRemaining}" autocomplete="off">
+                    <div class="grid grid-cols-3 gap-2">
+                        ${['7','8','9','4','5','6','1','2','3','.','0','⌫'].map((key) => `
+                            <button type="button" class="receive-calc-btn rounded-xl border border-slate-200 bg-white py-3 text-lg font-bold text-slate-700 transition hover:bg-slate-50" data-key="${key}">${key}</button>
+                        `).join('')}
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" id="receiveQtyClear" class="rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-100">ล้าง</button>
+                        <button type="button" id="receiveQtyAll" class="rounded-xl border border-green-200 bg-green-50 py-3 text-sm font-semibold text-green-800 transition hover:bg-green-100">รับทั้งหมดที่เหลือ</button>
+                    </div>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'ยืนยันจำนวนรับ',
+            cancelButtonText: 'ยกเลิก',
+            confirmButtonColor: '#16a34a',
+            width: '34rem',
+            focusConfirm: false,
+            didOpen: () => {
+                const input = document.getElementById('receiveQtyInput');
+                const setValue = (nextValue) => {
+                    input.value = nextValue.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                    input.focus();
+                };
+
+                input.focus();
+                input.select();
+                document.querySelectorAll('.receive-calc-btn').forEach((button) => {
+                    button.addEventListener('click', () => {
+                        const key = button.dataset.key;
+                        if (key === '⌫') {
+                            setValue(input.value.slice(0, -1));
+                            return;
+                        }
+                        setValue(`${input.value}${key}`);
+                    });
+                });
+                document.getElementById('receiveQtyClear')?.addEventListener('click', () => setValue(''));
+                document.getElementById('receiveQtyAll')?.addEventListener('click', () => setValue(rawRemaining));
+            },
+            preConfirm: () => {
+                const input = document.getElementById('receiveQtyInput');
+                const enteredQty = parseFloat(input?.value || 0);
+                if (!Number.isFinite(enteredQty) || enteredQty <= 0) {
+                    Swal.showValidationMessage('กรุณาระบุจำนวนที่รับมากกว่า 0');
+                    return false;
+                }
+                if (enteredQty - remaining > 0.0001) {
+                    Swal.showValidationMessage(`จำนวนที่รับต้องไม่เกินคงเหลือ ${formatQty(remaining)} ${unitLabel}`);
+                    return false;
+                }
+                return enteredQty;
+            }
+        });
+
+        return typeof value === 'number' ? value : null;
+    };
+
     const selectLocation = async (locationObject) => {
         selectedLocationInfo = locationObject;
         localStorage.setItem('selectedLocation', JSON.stringify(locationObject)); 
@@ -791,6 +906,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (item.last_update) {
                 deliveryInfo = new Date(item.last_update).toLocaleString('th-TH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' น.';
             }
+            deliveryInfo += buildReceiveProgressHTML(item);
 
             let shipIconHTML = '';
             if (item.shipflag === '1') {
@@ -804,6 +920,8 @@ document.addEventListener('DOMContentLoaded', () => {
             row.dataset.docno = item.docno;
             row.dataset.cdcode = item.cd_code;
             row.dataset.unit = item.unit;
+            row.dataset.qty = item.qty || '0';
+            row.dataset.receivedQty = item.received_qty_total || '0';
             row.dataset.price = item.UNITPRICE || '0';
             row.dataset.shipflag = item.shipflag || '0';
 
@@ -950,6 +1068,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const { docno, cdcode, status } = button.dataset;
         let remark = null;
         let receivedByEmployee = null;
+        let receivedQty = null;
 
         if (status === 'รับแล้ว') {
             const selectedEmployee = await promptReceivingEmployee();
@@ -957,6 +1076,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             receivedByEmployee = selectedEmployee.employee_name;
+
+            const row = button.closest('tr');
+            receivedQty = await promptReceiveQuantity({
+                totalQty: row?.dataset.qty || '0',
+                receivedQty: row?.dataset.receivedQty || '0',
+                unit: row?.dataset.unit || ''
+            });
+            if (receivedQty === null) {
+                return;
+            }
         }
 
         if (status === 'เลื่อน') {
@@ -1036,6 +1165,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     if (receivedByEmployee) {
                         formData.append('received_by_employee', receivedByEmployee);
+                    }
+                    if (receivedQty !== null) {
+                        formData.append('received_qty', receivedQty);
                     }
                     const response = await fetch(API_UPDATE_STATUS, { method: 'POST', body: formData });
                     const resData = await response.json();
