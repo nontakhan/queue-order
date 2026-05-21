@@ -204,9 +204,13 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentPage = 1;
     let currentSearchTerm = '';
     const ITEMS_PER_PAGE = 15;
+    const BACKGROUND_FULL_REFRESH_MS = 60000;
     let filteredItemsCache = [];
     let autoRefreshInterval = null;
     let previousPendingCount = null;
+    let lastFullRefreshAt = 0;
+    let isFetchingItems = false;
+    let isCheckingForNewItems = false;
     let notificationSoundUrl = null;
     let soundEnabled = localStorage.getItem('soundEnabled') !== 'false';
     let audioContext = null;
@@ -772,10 +776,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // เริ่ม auto-refresh ทันที
         if (autoRefreshInterval) clearInterval(autoRefreshInterval);
-        autoRefreshInterval = setInterval(() => {
-            console.log("Auto-refreshing data...");
-            fetchItems(currentPage);
-            checkForNewItems(locationObject.location_code);
+        autoRefreshInterval = setInterval(async () => {
+            const checkResult = await checkForNewItems(locationObject.location_code);
+            const shouldRefreshFullList = checkResult.changed || (Date.now() - lastFullRefreshAt >= BACKGROUND_FULL_REFRESH_MS);
+            if (shouldRefreshFullList) {
+                fetchItems(currentPage, { background: true });
+            }
         }, 10000);
     };
 
@@ -808,22 +814,29 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const checkForNewItems = async (locationCode) => {
+        if (isCheckingForNewItems) return { changed: false };
+        isCheckingForNewItems = true;
         try {
             const countParam = previousPendingCount !== null ? `&last_count=${previousPendingCount}` : '';
             const response = await fetch(`${API_CHECK_NEW}?location_code=${encodeURIComponent(locationCode)}${countParam}`);
             const result = await response.json();
             if (result.success) {
                 const newCount = result.data.total_pending;
+                const oldCount = previousPendingCount;
                 if (previousPendingCount !== null && newCount > previousPendingCount) {
                     const newItemCount = newCount - previousPendingCount;
                     playNotificationSound();
                     showNewItemPopup(newItemCount, result.data.new_items || []);
                 }
                 previousPendingCount = newCount;
+                return { changed: oldCount !== null && newCount !== oldCount };
             }
         } catch (error) {
             console.error('Error checking new items:', error);
+        } finally {
+            isCheckingForNewItems = false;
         }
+        return { changed: false };
     };
 
     const showNewItemPopup = (count, newItems) => {
@@ -893,10 +906,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const showNoData = (message) => { tableBody.innerHTML = ''; paginationControls.innerHTML = ''; tableStatus.innerHTML = `<p class="py-10">${message}</p>`; tableStatus.classList.remove('hidden'); };
     const hideStatus = () => { tableBody.innerHTML = ''; tableStatus.classList.add('hidden'); };
     
-    const fetchItems = async (page = 1) => {
+    const fetchItems = async (page = 1, options = {}) => {
         if (!selectedLocationInfo) return;
+        if (isFetchingItems) return;
+        isFetchingItems = true;
         
-        if (document.querySelectorAll('.item-row').length === 0) {
+        if (!options.background && document.querySelectorAll('.item-row').length === 0) {
             showLoading();
         }
         
@@ -921,6 +936,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const result = await response.json();
+            lastFullRefreshAt = Date.now();
             filteredItemsCache = result.success ? result.data.filter(item => !isExcludedCustomer(item.customer_name || '')) : [];
             if (result.success && filteredItemsCache.length > 0) {
                 renderCurrentPage(page);
@@ -929,7 +945,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Fetch error:', error);
-            showNoData('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์');
+            if (!options.background) {
+                showNoData('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์');
+            }
+        } finally {
+            isFetchingItems = false;
         }
     };
     
