@@ -12,7 +12,7 @@ $conn = app_db();
 
 $page = isset($_GET['page']) && is_numeric($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
 $limit = isset($_GET['limit']) && is_numeric($_GET['limit']) ? max(1, min((int) $_GET['limit'], 5000)) : 15;
-$offset = ($page - 1) * $limit;
+$offset = 0;
 $searchTerm = isset($_GET['search']) ? trim($_GET['search']) : '';
 $locationCode = ($user && !empty($user['default_location_code'])) ? $user['default_location_code'] : (isset($_GET['location']) ? trim($_GET['location']) : '');
 $status = isset($_GET['status']) ? trim($_GET['status']) : '';
@@ -101,6 +101,8 @@ try {
     $totalPages = $totalItems > 0 ? (int) ceil($totalItems / $limit) : 0;
 
     if ($totalItems > 0) {
+        $page = min($page, $totalPages);
+        $offset = ($page - 1) * $limit;
         $dataParams = $params;
         $dataTypes = $types . 'ii';
         $dataParams[] = $limit;

@@ -36,6 +36,7 @@ try {
     $sql = "SELECT SHIPFLAG, branch, docno, DOCDATE, CUSTNAME, user_lname, dg_lname, cd_code, cd_name, ct_lname, brand, code, lname, location_code, location, SNAME, LName_unit, qty, REMARK, UNITPRICE, NETAMOUNT, dim5_code, dim5_name, delivery_status, COALESCE(received_qty_total, 0) AS received_qty_total, COALESCE(received_count, 0) AS received_count
             FROM transfer_data_from_mssql
             WHERE docno = ? AND cd_code = ? AND (delivery_status IS NULL OR delivery_status = '' OR delivery_status = 'รับบางส่วน')
+            ORDER BY last_update DESC, docdate DESC, docno DESC
             LIMIT 1";
 
     // เตรียม Prepared Statement
