@@ -41,7 +41,7 @@ try {
         $params[] = $status;
         $types .= 's';
     } elseif (!$includeAllStatus) {
-        $whereClauses[] = "(delivery_status IS NULL OR delivery_status = '')";
+        $whereClauses[] = "(delivery_status IS NULL OR delivery_status = '' OR delivery_status = 'รับบางส่วน')";
     }
 
     if ($locationCode !== '') {
@@ -108,7 +108,9 @@ try {
         $dataSql = "SELECT docno, docdate, custname AS customer_name, cd_code,
                        cd_name, qty, Lname_unit AS unit, REMARK, UNITPRICE, branch, shipflag,
                        location_code, location,
-                       delivery_status, delivery_remark, received_by_employee, last_update
+                       delivery_status, delivery_remark, received_by_employee, last_update,
+                       COALESCE(received_qty_total, 0) AS received_qty_total,
+                       COALESCE(received_count, 0) AS received_count
                     FROM transfer_data_from_mssql {$whereSql}
                     ORDER BY last_update DESC, docdate DESC, docno DESC
                     LIMIT ? OFFSET ?";
