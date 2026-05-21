@@ -684,7 +684,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const handleDeleteItem = async (button) => {
+        const row = button.closest('tr');
         const { docno, cdcode } = button.dataset;
+        const unit = button.dataset.unit || row?.dataset.unit || '';
+        const price = button.dataset.price || row?.dataset.price || '';
         Swal.fire({
             title: 'คุณแน่ใจหรือไม่?',
             text: `คุณต้องการลบรายการ DocNo: ${docno} ออกจากระบบอย่างถาวร!`,
@@ -700,6 +703,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     const formData = new FormData();
                     formData.append('docno', docno);
                     formData.append('cd_code', cdcode);
+                    if (unit) {
+                        formData.append('unit', unit);
+                    }
+                    if (price) {
+                        formData.append('price', price);
+                    }
                     const response = await fetch(API_DELETE_ITEM, { method: 'POST', body: formData });
                     const resData = await response.json();
                     if (resData.success) {

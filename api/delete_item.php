@@ -11,20 +11,35 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $docno = isset($_POST['docno']) ? trim($_POST['docno']) : '';
 $cdCode = isset($_POST['cd_code']) ? trim($_POST['cd_code']) : '';
+$unit = isset($_POST['unit']) ? trim($_POST['unit']) : '';
+$price = isset($_POST['price']) ? trim($_POST['price']) : '';
 
 if ($docno === '' || $cdCode === '') {
     app_json_response(['success' => false, 'message' => 'docno and cd_code are required'], 422);
 }
 
+if ($price !== '' && !is_numeric($price)) {
+    app_json_response(['success' => false, 'message' => 'price must be numeric'], 422);
+}
+
 $conn = app_db();
 
 try {
-    $stmt = $conn->prepare('DELETE FROM transfer_data_from_mssql WHERE docno = ? AND cd_code = ?');
+    if ($unit !== '' && $price !== '') {
+        $stmt = $conn->prepare('DELETE FROM transfer_data_from_mssql WHERE docno = ? AND cd_code = ? AND Lname_unit = ? AND UNITPRICE = ?');
+    } else {
+        $stmt = $conn->prepare('DELETE FROM transfer_data_from_mssql WHERE docno = ? AND cd_code = ?');
+    }
     if ($stmt === false) {
         throw new Exception('Prepare statement failed: ' . $conn->error);
     }
 
-    $stmt->bind_param('ss', $docno, $cdCode);
+    if ($unit !== '' && $price !== '') {
+        $priceValue = (float) $price;
+        $stmt->bind_param('sssd', $docno, $cdCode, $unit, $priceValue);
+    } else {
+        $stmt->bind_param('ss', $docno, $cdCode);
+    }
     $stmt->execute();
 
     if ($stmt->affected_rows <= 0) {
