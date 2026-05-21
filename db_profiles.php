@@ -15,4 +15,11 @@ return [
         'pass' => 'P@ssw0rd',
         'name' => 'queue-hq',
     ],
+    'queue_nrg' => [
+        'label' => 'queue ตลาดเก่า',
+        'host' => '10.10.202.156',
+        'user' => 'nr',
+        'pass' => 'P@ssw0rd',
+        'name' => 'queue-nrg',
+    ],
 ];
