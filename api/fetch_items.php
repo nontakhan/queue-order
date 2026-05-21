@@ -10,7 +10,7 @@ require_once __DIR__ . '/_bootstrap.php';
 $user = app_current_user();
 $conn = app_db();
 
-$page = isset($_GET['page']) && is_numeric($_GET['page']) ? (int) $_GET['page'] : 1;
+$page = isset($_GET['page']) && is_numeric($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
 $limit = isset($_GET['limit']) && is_numeric($_GET['limit']) ? max(1, min((int) $_GET['limit'], 5000)) : 15;
 $offset = ($page - 1) * $limit;
 $searchTerm = isset($_GET['search']) ? trim($_GET['search']) : '';

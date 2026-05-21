@@ -33,6 +33,7 @@ try {
         app_json_response(['success' => false, 'message' => 'Item not found.']);
     }
 
+    // Receive history currently follows the same docno/cd_code identity used by status updates; unit/price-specific identity will be supplied by the receive flow when schema/API are expanded.
     $historySql = 'SELECT id, received_qty, received_by_employee, received_at, note
                    FROM item_receive_history
                    WHERE docno = ? AND cd_code = ?
