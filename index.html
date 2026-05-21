@@ -95,6 +95,10 @@
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             ดูรายการที่เลื่อน
                         </a>
+                        <a id="partialReceivedLink" href="#" class="flex items-center bg-orange-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-orange-600 transition">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 11V7m0 4h4m-4 0l5.657 5.657M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                            ดูรายการรับบางส่วน
+                        </a>
                         <a id="cancelledLink" href="#" class="flex items-center bg-red-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-red-600 transition">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             ดูรายการที่ยกเลิก
@@ -619,6 +623,37 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     };
 
+    const buildReceiveHistoryHTML = (item) => {
+        const history = Array.isArray(item.receive_history) ? item.receive_history : [];
+        const unit = escapeHtml(item.Lname_unit || item.unit || '');
+        const historyRows = history.length > 0
+            ? history.map((entry, index) => {
+                const receivedAt = entry.received_at
+                    ? `${new Date(entry.received_at).toLocaleString('th-TH', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })} น.`
+                    : '-';
+                return `
+                    <div class="rounded-xl border border-orange-100 bg-orange-50/70 p-3">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <p class="font-bold text-orange-800">ครั้งที่ ${index + 1}</p>
+                            <p class="font-semibold text-slate-800">${formatQty(entry.received_qty)} ${unit}</p>
+                        </div>
+                        <div class="mt-1 grid grid-cols-1 gap-1 text-xs text-slate-600 md:grid-cols-2">
+                            <p>ผู้รับ: <span class="font-semibold">${escapeHtml(entry.received_by_employee || '-')}</span></p>
+                            <p>เวลา: <span class="font-semibold">${escapeHtml(receivedAt)}</span></p>
+                        </div>
+                    </div>
+                `;
+            }).join('')
+            : '<p class="rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-500">ยังไม่มีประวัติการรับแบบแยกครั้ง</p>';
+
+        return `
+            <section>
+                <h3 class="text-lg font-semibold text-gray-700 border-b mt-4 mb-3 pb-2">ประวัติการรับสินค้า</h3>
+                <div class="space-y-3">${historyRows}</div>
+            </section>
+        `;
+    };
+
     const promptReceiveQuantity = async ({ totalQty, receivedQty, unit }) => {
         const total = parseFloat(totalQty || 0);
         const received = parseFloat(receivedQty || 0);
@@ -716,6 +751,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         document.getElementById('receivedLink').href = `history.html?location=${encodeURIComponent(selectedLocationInfo.location_code)}&status=${encodeURIComponent('รับแล้ว')}&location_name=${encodeURIComponent(selectedLocationInfo.location)}`;
         document.getElementById('postponedLink').href = `history.html?location=${encodeURIComponent(selectedLocationInfo.location_code)}&status=${encodeURIComponent('เลื่อน')}&location_name=${encodeURIComponent(selectedLocationInfo.location)}`;
+        document.getElementById('partialReceivedLink').href = `history.html?location=${encodeURIComponent(selectedLocationInfo.location_code)}&status=${encodeURIComponent('รับบางส่วน')}&location_name=${encodeURIComponent(selectedLocationInfo.location)}`;
         document.getElementById('cancelledLink').href = `history.html?location=${encodeURIComponent(selectedLocationInfo.location_code)}&status=${encodeURIComponent('ยกเลิก')}&location_name=${encodeURIComponent(selectedLocationInfo.location)}`;
         historyButtons.classList.remove('hidden');
 
@@ -1040,6 +1076,7 @@ document.addEventListener('DOMContentLoaded', () => {
                              <div class="md:col-span-2"><p class="text-gray-500">หมายเหตุการตรวจรับ</p><p class="font-semibold">${escapeHtml(item.delivery_remark || '-')}</p></div>
                         </div>
                     </section>
+                    ${buildReceiveHistoryHTML(item)}
                 `;
             } else {
                 throw new Error(result.message || 'ไม่สามารถโหลดข้อมูลรายละเอียดได้');
