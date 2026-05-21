@@ -2,6 +2,8 @@
 
 require_once __DIR__ . '/api/_bootstrap.php';
 
+app_require_login(true);
+
 header('Content-Type: text/html; charset=utf-8');
 
 function h(string $value): string
@@ -44,6 +46,21 @@ function execute_sql(mysqli $conn, string $sql): void
     }
 }
 
+function add_column_if_missing(mysqli $conn, string $table, string $column, string $definition, string $afterColumn): bool
+{
+    if (column_exists($conn, $table, $column)) {
+        return false;
+    }
+
+    execute_sql($conn, "
+        ALTER TABLE {$table}
+        ADD COLUMN {$column} {$definition}
+        AFTER {$afterColumn}
+    ");
+
+    return true;
+}
+
 function setup_partial_receive_schema(mysqli $conn): array
 {
     $messages = [];
@@ -63,23 +80,19 @@ function setup_partial_receive_schema(mysqli $conn): array
     ");
     $messages[] = 'ตาราง item_receive_history พร้อมใช้งาน';
 
-    if (!column_exists($conn, 'transfer_data_from_mssql', 'received_qty_total')) {
-        execute_sql($conn, "
-            ALTER TABLE transfer_data_from_mssql
-            ADD COLUMN received_qty_total DECIMAL(15,3) NOT NULL DEFAULT 0
-            AFTER received_by_employee
-        ");
+    if (add_column_if_missing($conn, 'transfer_data_from_mssql', 'received_by_employee', 'VARCHAR(255) NULL', 'delivery_remark')) {
+        $messages[] = 'เพิ่มคอลัมน์ received_by_employee แล้ว';
+    } else {
+        $messages[] = 'คอลัมน์ received_by_employee มีอยู่แล้ว';
+    }
+
+    if (add_column_if_missing($conn, 'transfer_data_from_mssql', 'received_qty_total', 'DECIMAL(15,3) NOT NULL DEFAULT 0', 'received_by_employee')) {
         $messages[] = 'เพิ่มคอลัมน์ received_qty_total แล้ว';
     } else {
         $messages[] = 'คอลัมน์ received_qty_total มีอยู่แล้ว';
     }
 
-    if (!column_exists($conn, 'transfer_data_from_mssql', 'received_count')) {
-        execute_sql($conn, "
-            ALTER TABLE transfer_data_from_mssql
-            ADD COLUMN received_count INT NOT NULL DEFAULT 0
-            AFTER received_qty_total
-        ");
+    if (add_column_if_missing($conn, 'transfer_data_from_mssql', 'received_count', 'INT NOT NULL DEFAULT 0', 'received_qty_total')) {
         $messages[] = 'เพิ่มคอลัมน์ received_count แล้ว';
     } else {
         $messages[] = 'คอลัมน์ received_count มีอยู่แล้ว';
@@ -90,7 +103,8 @@ function setup_partial_receive_schema(mysqli $conn): array
         SET received_qty_total = COALESCE(qty, 0),
             received_count = 1
         WHERE delivery_status = 'รับแล้ว'
-          AND received_qty_total = 0
+          AND COALESCE(received_qty_total, 0) = 0
+          AND COALESCE(received_count, 0) = 0
     ");
     $messages[] = 'Backfill ข้อมูลเก่าที่รับแล้วเรียบร้อย';
 
