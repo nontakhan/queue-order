@@ -919,7 +919,7 @@ document.addEventListener('DOMContentLoaded', () => {
             row.className = `${groupColors[colorIndex]} hover:bg-yellow-100 transition-colors duration-200 item-row`;
             row.dataset.docno = item.docno;
             row.dataset.cdcode = item.cd_code;
-            row.dataset.unit = item.unit;
+            row.dataset.unit = item.unit || '';
             row.dataset.qty = item.qty || '0';
             row.dataset.receivedQty = item.received_qty_total || '0';
             row.dataset.price = item.UNITPRICE || '0';
@@ -931,7 +931,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${docDate}</td>
                 <td class="px-6 py-4 text-sm text-gray-700">${item.customer_name||'N/A'}</td>
                 <td class="px-6 py-4 text-sm text-gray-700">${item.cd_name||''}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${parseFloat(item.qty).toLocaleString()||'0'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${formatQty(item.qty)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.unit||''}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${deliveryInfo}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
@@ -1071,16 +1071,32 @@ document.addEventListener('DOMContentLoaded', () => {
         let receivedQty = null;
 
         if (status === 'รับแล้ว') {
+            const row = button.closest('tr');
+            const totalQty = parseFloat(row?.dataset.qty || 0);
+            const currentReceivedQty = parseFloat(row?.dataset.receivedQty || 0);
+            const safeTotalQty = Number.isFinite(totalQty) ? totalQty : 0;
+            const safeCurrentReceivedQty = Number.isFinite(currentReceivedQty) ? currentReceivedQty : 0;
+            const remainingQty = Math.max(0, safeTotalQty - safeCurrentReceivedQty);
+
+            if (remainingQty <= 0.0001) {
+                await Swal.fire({
+                    icon: 'warning',
+                    title: 'รับครบแล้ว',
+                    text: 'รายการนี้ไม่มีจำนวนคงเหลือให้รับเพิ่ม',
+                    confirmButtonColor: '#16a34a'
+                });
+                return;
+            }
+
             const selectedEmployee = await promptReceivingEmployee();
             if (!selectedEmployee) {
                 return;
             }
             receivedByEmployee = selectedEmployee.employee_name;
 
-            const row = button.closest('tr');
             receivedQty = await promptReceiveQuantity({
-                totalQty: row?.dataset.qty || '0',
-                receivedQty: row?.dataset.receivedQty || '0',
+                totalQty: safeTotalQty,
+                receivedQty: safeCurrentReceivedQty,
                 unit: row?.dataset.unit || ''
             });
             if (receivedQty === null) {
