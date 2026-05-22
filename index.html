@@ -627,6 +627,22 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     };
 
+    const buildPartialReceiveBadgeHTML = (item) => {
+        const totalQty = Number.parseFloat(item.qty || 0);
+        const receivedQty = Number.parseFloat(item.received_qty_total || 0);
+        if (!Number.isFinite(totalQty) || !Number.isFinite(receivedQty) || receivedQty <= 0 || receivedQty >= totalQty) {
+            return '';
+        }
+
+        return `
+            <div class="mt-2">
+                <span class="inline-flex items-center rounded-full bg-orange-100 px-2.5 py-1 text-xs font-bold text-orange-800 ring-1 ring-orange-200">
+                    รับบางส่วน ${formatQty(receivedQty)} / ${formatQty(totalQty)}
+                </span>
+            </div>
+        `;
+    };
+
     const buildReceiveHistoryHTML = (item) => {
         const history = Array.isArray(item.receive_history) ? item.receive_history : [];
         const unit = escapeHtml(item.Lname_unit || item.unit || '');
@@ -997,13 +1013,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const customerNameHTML = escapeHtml(item.customer_name || 'N/A');
             const cdNameHTML = escapeHtml(item.cd_name || '');
             const unitHTML = escapeHtml(item.unit || '');
+            const partialReceiveBadgeHTML = buildPartialReceiveBadgeHTML(item);
 
             row.innerHTML = `
                 <td class="px-2 py-4 align-middle"><div class="flex min-h-[2.75rem] items-center justify-center">${shipIconHTML}</div></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800">${docNoHTML}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(docDate)}</td>
                 <td class="px-6 py-4 text-sm text-gray-700">${customerNameHTML}</td>
-                <td class="px-6 py-4 text-sm text-gray-700">${cdNameHTML}</td>
+                <td class="px-6 py-4 text-sm text-gray-700">${cdNameHTML}${partialReceiveBadgeHTML}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${formatQty(item.qty)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${unitHTML}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${deliveryInfo}</td>
