@@ -142,11 +142,23 @@
                 </div>
             </div>
 
+            <div id="batchActionBar" class="mb-4 hidden flex-wrap items-center justify-between gap-4 rounded-[1.25rem] border border-green-200 bg-green-50 px-5 py-4 text-slate-900 shadow-sm">
+                <p class="text-sm font-semibold text-green-900">เลือกแล้ว <span id="batchSelectedCount">0</span> รายการ</p>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" id="batchReceiveBtn" class="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50">รับทั้งหมด</button>
+                    <button type="button" id="batchPostponeBtn" class="rounded-lg bg-yellow-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-yellow-600 disabled:cursor-not-allowed disabled:opacity-50">เลื่อน</button>
+                    <button type="button" id="batchCancelBtn" class="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50">ยกเลิก</button>
+                    <button type="button" id="clearBatchSelectionBtn" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50">ล้างการเลือก</button>
+                </div>
+            </div>
             <div class="overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white/95 text-slate-900 shadow-xl shadow-slate-200/70 backdrop-blur">
                 <div class="overflow-x-auto xl:overflow-visible">
                     <table class="w-full min-w-[82rem] text-left xl:min-w-full">
                         <thead class="bg-gray-50 border-b border-gray-200">
                             <tr>
+                                <th class="px-4 py-3 text-center">
+                                    <input type="checkbox" id="selectAllVisibleItems" class="batch-select-checkbox h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500" aria-label="เลือกรายการทั้งหมดในหน้านี้">
+                                </th>
                                 <th class="px-2 py-3"></th>
                                 <th class="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">DocNo</th>
                                 <th class="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">วันที่เอกสาร</th>
@@ -188,10 +200,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const detailsModal = document.getElementById('detailsModal');
     const detailsContent = document.getElementById('detailsContent');
     const closeDetailsModal = document.getElementById('closeDetailsModal');
+    const batchActionBar = document.getElementById('batchActionBar');
+    const batchSelectedCount = document.getElementById('batchSelectedCount');
+    const selectAllVisibleItems = document.getElementById('selectAllVisibleItems');
+    const batchReceiveBtn = document.getElementById('batchReceiveBtn');
+    const batchPostponeBtn = document.getElementById('batchPostponeBtn');
+    const batchCancelBtn = document.getElementById('batchCancelBtn');
+    const clearBatchSelectionBtn = document.getElementById('clearBatchSelectionBtn');
 
     const API_GET_LOCATIONS = './api/get_locations.php';
     const API_FETCH_ITEMS = './api/fetch_items.php';
     const API_UPDATE_STATUS = './api/update_status.php';
+    const API_UPDATE_STATUS_BATCH = './api/update_status_batch.php';
     const API_GET_DETAILS = './api/get_item_details.php';
     const API_CHECK_NEW = './api/check_new_items.php';
     const API_GET_SOUNDS = './api/get_sounds.php';
@@ -210,6 +230,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let previousPendingCount = null;
     let lastFullRefreshAt = 0;
     let isFetchingItems = false;
+    let pendingForegroundRefreshPage = null;
+    let pendingForegroundRefreshWaiters = [];
+    let dataViewEpoch = 0;
     let isCheckingForNewItems = false;
     let notificationSoundUrl = null;
     let soundEnabled = localStorage.getItem('soundEnabled') !== 'false';
@@ -218,6 +241,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let locationEmployeesMap = {};
     let currentUser = null;
     let currentDbProfile = null;
+    const selectedBatchItems = new Map();
+    let isStatusActionInProgress = false;
     const EXCLUDED_CUSTOMER_KEYWORD = 'นำรุ่งเคหะภัณฑ์สำนักงานใหญ่';
 
     const normalizeCustomerName = (value = '') => value
@@ -323,6 +348,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const clearSelectedLocation = () => {
         if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+        dataViewEpoch += 1;
+        clearBatchSelection();
         previousPendingCount = null;
         notificationSoundUrl = null;
         selectedLocationInfo = null;
@@ -795,7 +822,7 @@ document.addEventListener('DOMContentLoaded', () => {
         autoRefreshInterval = setInterval(async () => {
             const checkResult = await checkForNewItems(locationObject.location_code);
             const shouldRefreshFullList = checkResult.changed || (Date.now() - lastFullRefreshAt >= BACKGROUND_FULL_REFRESH_MS);
-            if (shouldRefreshFullList) {
+            if (shouldRefreshFullList && selectedBatchItems.size === 0 && !isStatusActionInProgress) {
                 fetchItems(currentPage, { background: true });
             }
         }, 10000);
@@ -918,16 +945,86 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const showLoading = () => { tableBody.innerHTML = ''; paginationControls.innerHTML = ''; tableStatus.innerHTML = `<div class="flex justify-center items-center py-10"><div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div><p class="ml-4 text-gray-600">กำลังโหลด...</p></div>`; tableStatus.classList.remove('hidden'); };
-    const showNoData = (message) => { tableBody.innerHTML = ''; paginationControls.innerHTML = ''; tableStatus.innerHTML = `<p class="py-10">${message}</p>`; tableStatus.classList.remove('hidden'); };
-    const hideStatus = () => { tableBody.innerHTML = ''; tableStatus.classList.add('hidden'); };
+    const getBatchItemFromRow = (row) => {
+        const unit = (row?.dataset.unit || '').trim();
+        return {
+            docno: row?.dataset.docno || '',
+            cd_code: row?.dataset.cdcode || '',
+            unit: unit,
+            price: unit ? (row?.dataset.price || '0') : ''
+        };
+    };
+
+    const getBatchItemKey = (item) => JSON.stringify([item.docno, item.cd_code, item.unit, item.price]);
+
+    const getVisibleBatchCheckboxes = () => Array.from(tableBody.querySelectorAll('.batch-select-checkbox'));
+
+    const updateBatchSelectionUI = () => {
+        const selectedCount = selectedBatchItems.size;
+        const visibleCheckboxes = getVisibleBatchCheckboxes();
+        const visibleCheckedCount = visibleCheckboxes.filter((checkbox) => checkbox.checked).length;
+        const hasSelection = selectedCount > 0;
+
+        batchSelectedCount.textContent = String(selectedCount);
+        batchActionBar.classList.toggle('hidden', !hasSelection);
+        batchActionBar.classList.toggle('flex', hasSelection);
+        [batchReceiveBtn, batchPostponeBtn, batchCancelBtn, clearBatchSelectionBtn].forEach((button) => {
+            button.disabled = !hasSelection || isStatusActionInProgress;
+        });
+
+        visibleCheckboxes.forEach((checkbox) => {
+            checkbox.disabled = isStatusActionInProgress;
+        });
+        tableBody.querySelectorAll('.update-btn').forEach((button) => {
+            button.disabled = isStatusActionInProgress;
+        });
+        paginationControls.querySelectorAll('.pagination-nav-btn').forEach((button) => {
+            button.disabled = button.dataset.boundaryDisabled === '1' || isStatusActionInProgress;
+        });
+        selectAllVisibleItems.disabled = visibleCheckboxes.length === 0 || isStatusActionInProgress;
+        selectAllVisibleItems.checked = visibleCheckboxes.length > 0 && visibleCheckedCount === visibleCheckboxes.length;
+        selectAllVisibleItems.indeterminate = visibleCheckedCount > 0 && visibleCheckedCount < visibleCheckboxes.length;
+    };
+
+    const clearBatchSelection = () => {
+        selectedBatchItems.clear();
+        getVisibleBatchCheckboxes().forEach((checkbox) => {
+            checkbox.checked = false;
+        });
+        updateBatchSelectionUI();
+    };
+
+    const showLoading = () => { tableBody.innerHTML = ''; paginationControls.innerHTML = ''; tableStatus.innerHTML = `<div class="flex justify-center items-center py-10"><div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div><p class="ml-4 text-gray-600">กำลังโหลด...</p></div>`; tableStatus.classList.remove('hidden'); updateBatchSelectionUI(); };
+    const showNoData = (message) => { tableBody.innerHTML = ''; paginationControls.innerHTML = ''; tableStatus.innerHTML = `<p class="py-10">${message}</p>`; tableStatus.classList.remove('hidden'); updateBatchSelectionUI(); };
+    const hideStatus = () => { tableBody.innerHTML = ''; tableStatus.classList.add('hidden'); updateBatchSelectionUI(); };
     
     const fetchItems = async (page = 1, options = {}) => {
         if (!selectedLocationInfo) return;
-        if (isFetchingItems) return;
+        const isBackgroundRefresh = options.background === true;
+        if (!isBackgroundRefresh) {
+            dataViewEpoch += 1;
+            clearBatchSelection();
+        } else if (selectedBatchItems.size > 0 || isStatusActionInProgress) {
+            return;
+        }
+
+        if (isFetchingItems) {
+            if (!isBackgroundRefresh) {
+                pendingForegroundRefreshPage = page;
+                return new Promise((resolve, reject) => {
+                    pendingForegroundRefreshWaiters.push({ resolve, reject });
+                });
+            }
+            return;
+        }
+
+        if (isBackgroundRefresh) {
+            clearBatchSelection();
+        }
         isFetchingItems = true;
+        const requestEpoch = dataViewEpoch;
         
-        if (!options.background && document.querySelectorAll('.item-row').length === 0) {
+        if (!isBackgroundRefresh && document.querySelectorAll('.item-row').length === 0) {
             showLoading();
         }
         
@@ -952,6 +1049,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const result = await response.json();
+            if (requestEpoch !== dataViewEpoch) {
+                return;
+            }
+            if (isBackgroundRefresh && (selectedBatchItems.size > 0 || isStatusActionInProgress)) {
+                return;
+            }
             lastFullRefreshAt = Date.now();
             filteredItemsCache = result.success ? result.data.filter(item => !isExcludedCustomer(item.customer_name || '')) : [];
             if (result.success && filteredItemsCache.length > 0) {
@@ -961,11 +1064,21 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Fetch error:', error);
-            if (!options.background) {
+            if (!isBackgroundRefresh) {
                 showNoData('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์');
             }
         } finally {
             isFetchingItems = false;
+            if (pendingForegroundRefreshPage !== null) {
+                const queuedPage = pendingForegroundRefreshPage;
+                const queuedWaiters = pendingForegroundRefreshWaiters;
+                pendingForegroundRefreshPage = null;
+                pendingForegroundRefreshWaiters = [];
+                fetchItems(queuedPage).then(
+                    (value) => queuedWaiters.forEach(({ resolve }) => resolve(value)),
+                    (error) => queuedWaiters.forEach(({ reject }) => reject(error))
+                );
+            }
         }
     };
     
@@ -1016,6 +1129,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const partialReceiveBadgeHTML = buildPartialReceiveBadgeHTML(item);
 
             row.innerHTML = `
+                <td class="px-4 py-4 align-middle text-center"><input type="checkbox" class="batch-select-checkbox h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500" aria-label="เลือก ${docNoHTML}"></td>
                 <td class="px-2 py-4 align-middle"><div class="flex min-h-[2.75rem] items-center justify-center">${shipIconHTML}</div></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800">${docNoHTML}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(docDate)}</td>
@@ -1034,9 +1148,11 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             tableBody.appendChild(row);
         });
+        updateBatchSelectionUI();
     };
 
     const renderCurrentPage = (page = 1) => {
+        clearBatchSelection();
         if (filteredItemsCache.length === 0) {
             showNoData(currentSearchTerm || startDateInput.value || endDateInput.value ? `ไม่พบรายการตามเงื่อนไขที่กำหนด` : 'ไม่มีรายการที่รอตรวจรับในคลังนี้');
             return;
@@ -1137,10 +1253,14 @@ document.addEventListener('DOMContentLoaded', () => {
         buttonsContainer.className = 'flex items-center space-x-2';
         const prevButton = document.createElement('button');
         prevButton.innerHTML = '&laquo;';
-        prevButton.className = 'px-3 py-1 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50';
-        if (current_page === 1) prevButton.disabled = true;
+        prevButton.className = 'pagination-nav-btn px-3 py-1 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50';
+        prevButton.dataset.boundaryDisabled = current_page === 1 ? '1' : '0';
+        prevButton.disabled = prevButton.dataset.boundaryDisabled === '1' || isStatusActionInProgress;
         prevButton.type = 'button';
-        prevButton.addEventListener('click', () => renderCurrentPage(current_page - 1));
+        prevButton.addEventListener('click', () => {
+            dataViewEpoch += 1;
+            renderCurrentPage(current_page - 1);
+        });
         buttonsContainer.appendChild(prevButton);
         const pageInfo = document.createElement('span');
         pageInfo.className = 'px-3 py-1 text-sm font-semibold text-gray-700';
@@ -1148,147 +1268,256 @@ document.addEventListener('DOMContentLoaded', () => {
         buttonsContainer.appendChild(pageInfo);
         const nextButton = document.createElement('button');
         nextButton.innerHTML = '&raquo;';
-        nextButton.className = 'px-3 py-1 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50';
-        if (current_page >= total_pages) nextButton.disabled = true;
+        nextButton.className = 'pagination-nav-btn px-3 py-1 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50';
+        nextButton.dataset.boundaryDisabled = current_page >= total_pages ? '1' : '0';
+        nextButton.disabled = nextButton.dataset.boundaryDisabled === '1' || isStatusActionInProgress;
         nextButton.type = 'button';
-        nextButton.addEventListener('click', () => renderCurrentPage(current_page + 1));
+        nextButton.addEventListener('click', () => {
+            dataViewEpoch += 1;
+            renderCurrentPage(current_page + 1);
+        });
         buttonsContainer.appendChild(nextButton);
         paginationControls.appendChild(buttonsContainer);
     };
-    
-    const handleUpdateStatus = async (button) => {
-        if (!button) return;
-        const { docno, cdcode, status } = button.dataset;
-        const row = button.closest('tr');
-        let remark = null;
-        let receivedByEmployee = null;
-        let receivedQty = null;
 
-        if (status === 'รับแล้ว') {
-            const totalQty = parseFloat(row?.dataset.qty || 0);
-            const currentReceivedQty = parseFloat(row?.dataset.receivedQty || 0);
-            const safeTotalQty = Number.isFinite(totalQty) ? totalQty : 0;
-            const safeCurrentReceivedQty = Number.isFinite(currentReceivedQty) ? currentReceivedQty : 0;
-            const remainingQty = Math.max(0, safeTotalQty - safeCurrentReceivedQty);
-
-            if (remainingQty <= 0.0001) {
-                await Swal.fire({
-                    icon: 'warning',
-                    title: 'รับครบแล้ว',
-                    text: 'รายการนี้ไม่มีจำนวนคงเหลือให้รับเพิ่ม',
-                    confirmButtonColor: '#16a34a'
-                });
-                return;
-            }
-
-            const selectedEmployee = await promptReceivingEmployee();
-            if (!selectedEmployee) {
-                return;
-            }
-            receivedByEmployee = selectedEmployee.employee_name;
-
-            receivedQty = await promptReceiveQuantity({
-                totalQty: safeTotalQty,
-                receivedQty: safeCurrentReceivedQty,
-                unit: row?.dataset.unit || ''
-            });
-            if (receivedQty === null) {
-                return;
-            }
-        }
-
-        if (status === 'เลื่อน') {
-            const getReason = () => {
-                return new Promise((resolve) => {
-                    Swal.fire({
-                        title: 'เลือกเหตุผลที่เลื่อน',
-                        html: `
-                            <div class="flex flex-wrap justify-center gap-3 mt-4">
-                                <button id="reason1" class="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">รอมารับ</button>
-                                <button id="reason2" class="bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors">ยังไม่มีสินค้า</button>
-                                <button id="reason3" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors">อื่นๆ</button>
-                            </div>
-                        `,
-                        showConfirmButton: false,
-                        showCancelButton: true,
-                        cancelButtonText: 'ยกเลิก',
-                        didOpen: () => {
-                            document.getElementById('reason1').addEventListener('click', () => { Swal.close(); resolve('รอมารับ'); });
-                            document.getElementById('reason2').addEventListener('click', () => { Swal.close(); resolve('ยังไม่มีสินค้า'); });
-                            document.getElementById('reason3').addEventListener('click', () => { Swal.close(); resolve('อื่นๆ'); });
-                        }
-                    }).then((result) => {
-                        if (result.dismiss) {
-                            resolve(null);
-                        }
-                    });
-                });
-            };
-
-            const reason = await getReason();
-
-            if (reason === 'อื่นๆ') {
-                const { value: otherReason } = await Swal.fire({
-                    title: 'ระบุเหตุผลอื่นๆ',
-                    input: 'text',
-                    inputPlaceholder: 'กรุณาระบุเหตุผล...',
-                    showCancelButton: true,
-                    confirmButtonText: 'ยืนยัน',
-                    cancelButtonText: 'ยกเลิก',
-                    inputValidator: (value) => {
-                        if (!value) {
-                            return 'กรุณากรอกเหตุผล!';
-                        }
-                    }
-                });
-                if (otherReason) {
-                    remark = otherReason;
-                } else {
-                    return; 
+    const promptPostponeReason = async () => {
+        const reason = await new Promise((resolve) => {
+            Swal.fire({
+                title: 'เลือกเหตุผลที่เลื่อน',
+                html: `
+                    <div class="flex flex-wrap justify-center gap-3 mt-4">
+                        <button id="reason1" class="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">รอมารับ</button>
+                        <button id="reason2" class="bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors">ยังไม่มีสินค้า</button>
+                        <button id="reason3" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors">อื่นๆ</button>
+                    </div>
+                `,
+                showConfirmButton: false,
+                showCancelButton: true,
+                cancelButtonText: 'ยกเลิก',
+                didOpen: () => {
+                    document.getElementById('reason1').addEventListener('click', () => { Swal.close(); resolve('รอมารับ'); });
+                    document.getElementById('reason2').addEventListener('click', () => { Swal.close(); resolve('ยังไม่มีสินค้า'); });
+                    document.getElementById('reason3').addEventListener('click', () => { Swal.close(); resolve('อื่นๆ'); });
                 }
-            } else if (reason) {
-                remark = reason;
-            } else {
-                return; 
-            }
+            }).then((result) => {
+                if (result.dismiss) {
+                    resolve(null);
+                }
+            });
+        });
+
+        if (reason !== 'อื่นๆ') {
+            return reason;
         }
 
-        Swal.fire({ 
-            title: 'ยืนยันการอัปเดต?', 
-            text: `เปลี่ยนสถานะ DocNo: ${docno} เป็น "${status}" ใช่หรือไม่?`, 
-            icon: 'question', 
-            showCancelButton: true, 
-            confirmButtonColor: '#16a34a', 
-            cancelButtonColor: '#ef4444', 
-            confirmButtonText: 'ใช่, ยืนยัน', 
-            cancelButtonText: 'ยกเลิก' 
-        }).then(async (result) => {
-            if (result.isConfirmed) {
-                try {
-                    const formData = new FormData();
-                    formData.append('docno', docno);
-                    formData.append('cd_code', cdcode);
-                    formData.append('new_status', status);
-                    formData.append('unit', row?.dataset.unit || '');
-                    formData.append('price', row?.dataset.price || '');
-                    if (remark) { 
-                        formData.append('remark', remark); 
-                    }
-                    if (receivedByEmployee) {
-                        formData.append('received_by_employee', receivedByEmployee);
-                    }
-                    if (receivedQty !== null) {
-                        formData.append('received_qty', receivedQty);
-                    }
-                    const response = await fetch(API_UPDATE_STATUS, { method: 'POST', body: formData });
-                    const resData = await response.json();
-                    if (resData.success) {
-                        Swal.fire('สำเร็จ!', 'อัปเดตสถานะเรียบร้อยแล้ว', 'success');
-                        fetchItems(currentPage);
-                    } else { throw new Error(resData.message || 'ไม่สามารถอัปเดตข้อมูลได้'); }
-                } catch (error) { Swal.fire('เกิดข้อผิดพลาด!', error.message, 'error'); }
+        const { value: otherReason } = await Swal.fire({
+            title: 'ระบุเหตุผลอื่นๆ',
+            input: 'text',
+            inputPlaceholder: 'กรุณาระบุเหตุผล...',
+            showCancelButton: true,
+            confirmButtonText: 'ยืนยัน',
+            cancelButtonText: 'ยกเลิก',
+            inputValidator: (value) => {
+                if (!value) {
+                    return 'กรุณากรอกเหตุผล!';
+                }
             }
         });
+
+        return otherReason || null;
+    };
+
+    const showNoBatchSelectionError = () => Swal.fire('เกิดข้อผิดพลาด!', 'กรุณาเลือกรายการที่ต้องการอัปเดต', 'error');
+
+    const submitBatchStatus = async (newStatus, { receivedByEmployee = null, remark = null } = {}) => {
+        const items = Array.from(selectedBatchItems.values());
+        if (items.length === 0) {
+            await showNoBatchSelectionError();
+            return;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('new_status', newStatus);
+            formData.append('items', JSON.stringify(items));
+            if (receivedByEmployee) {
+                formData.append('received_by_employee', receivedByEmployee);
+            }
+            if (remark) {
+                formData.append('remark', remark);
+            }
+
+            const response = await fetch(API_UPDATE_STATUS_BATCH, { method: 'POST', body: formData });
+            const resData = await response.json();
+            if (!response.ok || !resData.success) {
+                throw new Error(resData.message || 'ไม่สามารถอัปเดตข้อมูลได้');
+            }
+
+            dataViewEpoch += 1;
+            await Swal.fire('สำเร็จ!', `อัปเดตสถานะ ${items.length} รายการเรียบร้อยแล้ว`, 'success');
+            await fetchItems(currentPage);
+        } catch (error) {
+            await Swal.fire('เกิดข้อผิดพลาด!', error.message, 'error');
+        }
+    };
+
+    const handleBatchStatus = async (newStatus) => {
+        if (isStatusActionInProgress) {
+            return;
+        }
+        if (selectedBatchItems.size === 0) {
+            await showNoBatchSelectionError();
+            return;
+        }
+
+        let receivedByEmployee = null;
+        let remark = null;
+        dataViewEpoch += 1;
+        isStatusActionInProgress = true;
+        updateBatchSelectionUI();
+
+        try {
+            if (newStatus === 'รับแล้ว') {
+                const selectedEmployee = await promptReceivingEmployee();
+                if (!selectedEmployee) {
+                    return;
+                }
+                receivedByEmployee = selectedEmployee.employee_name;
+            } else if (newStatus === 'เลื่อน') {
+                remark = await promptPostponeReason();
+                if (!remark) {
+                    return;
+                }
+            }
+
+            const selectedCount = selectedBatchItems.size;
+            if (selectedCount === 0) {
+                await showNoBatchSelectionError();
+                return;
+            }
+
+            const actionLabel = newStatus === 'รับแล้ว' ? 'รับทั้งหมด' : newStatus;
+            const result = await Swal.fire({
+                title: 'ยืนยันการอัปเดต?',
+                text: `เปลี่ยนสถานะ ${selectedCount} รายการเป็น "${actionLabel}" ใช่หรือไม่?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#16a34a',
+                cancelButtonColor: '#ef4444',
+                confirmButtonText: 'ใช่, ยืนยัน',
+                cancelButtonText: 'ยกเลิก'
+            });
+
+            if (result.isConfirmed) {
+                await submitBatchStatus(newStatus, { receivedByEmployee, remark });
+            }
+        } catch (error) {
+            await Swal.fire('เกิดข้อผิดพลาด!', error.message, 'error');
+        } finally {
+            isStatusActionInProgress = false;
+            updateBatchSelectionUI();
+        }
+    };
+
+    const handleUpdateStatus = async (button) => {
+        if (!button || isStatusActionInProgress) return;
+
+        dataViewEpoch += 1;
+        isStatusActionInProgress = true;
+        updateBatchSelectionUI();
+
+        try {
+            const { docno, cdcode, status } = button.dataset;
+            const row = button.closest('tr');
+            let remark = null;
+            let receivedByEmployee = null;
+            let receivedQty = null;
+
+            if (status === 'รับแล้ว') {
+                const totalQty = parseFloat(row?.dataset.qty || 0);
+                const currentReceivedQty = parseFloat(row?.dataset.receivedQty || 0);
+                const safeTotalQty = Number.isFinite(totalQty) ? totalQty : 0;
+                const safeCurrentReceivedQty = Number.isFinite(currentReceivedQty) ? currentReceivedQty : 0;
+                const remainingQty = Math.max(0, safeTotalQty - safeCurrentReceivedQty);
+
+                if (remainingQty <= 0.0001) {
+                    await Swal.fire({
+                        icon: 'warning',
+                        title: 'รับครบแล้ว',
+                        text: 'รายการนี้ไม่มีจำนวนคงเหลือให้รับเพิ่ม',
+                        confirmButtonColor: '#16a34a'
+                    });
+                    return;
+                }
+
+                const selectedEmployee = await promptReceivingEmployee();
+                if (!selectedEmployee) {
+                    return;
+                }
+                receivedByEmployee = selectedEmployee.employee_name;
+
+                receivedQty = await promptReceiveQuantity({
+                    totalQty: safeTotalQty,
+                    receivedQty: safeCurrentReceivedQty,
+                    unit: row?.dataset.unit || ''
+                });
+                if (receivedQty === null) {
+                    return;
+                }
+            }
+
+            if (status === 'เลื่อน') {
+                remark = await promptPostponeReason();
+                if (!remark) {
+                    return;
+                }
+            }
+
+            const result = await Swal.fire({
+                title: 'ยืนยันการอัปเดต?',
+                text: `เปลี่ยนสถานะ DocNo: ${docno} เป็น "${status}" ใช่หรือไม่?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#16a34a',
+                cancelButtonColor: '#ef4444',
+                confirmButtonText: 'ใช่, ยืนยัน',
+                cancelButtonText: 'ยกเลิก'
+            });
+            if (!result.isConfirmed) {
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('docno', docno);
+            formData.append('cd_code', cdcode);
+            formData.append('new_status', status);
+            formData.append('unit', row?.dataset.unit || '');
+            formData.append('price', row?.dataset.price || '');
+            if (remark) {
+                formData.append('remark', remark);
+            }
+            if (receivedByEmployee) {
+                formData.append('received_by_employee', receivedByEmployee);
+            }
+            if (receivedQty !== null) {
+                formData.append('received_qty', receivedQty);
+            }
+
+            const response = await fetch(API_UPDATE_STATUS, { method: 'POST', body: formData });
+            const resData = await response.json();
+            if (!resData.success) {
+                throw new Error(resData.message || 'ไม่สามารถอัปเดตข้อมูลได้');
+            }
+
+            dataViewEpoch += 1;
+            Swal.fire('สำเร็จ!', 'อัปเดตสถานะเรียบร้อยแล้ว', 'success');
+            await fetchItems(currentPage);
+        } catch (error) {
+            await Swal.fire('เกิดข้อผิดพลาด!', error.message, 'error');
+        } finally {
+            isStatusActionInProgress = false;
+            updateBatchSelectionUI();
+        }
     };
 
     // Unlock AudioContext เมื่อผู้ใช้โต้ตอบครั้งแรก (สำหรับกรณี refresh / localStorage)
@@ -1331,6 +1560,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Event Listeners ---
     let searchTimeout;
     searchInput.addEventListener('keyup', () => { 
+        dataViewEpoch += 1;
+        clearBatchSelection();
         clearTimeout(searchTimeout); 
         searchTimeout = setTimeout(() => { 
             fetchItems(1); // Reset to page 1 on new search
@@ -1347,8 +1578,53 @@ document.addEventListener('DOMContentLoaded', () => {
         searchInput.value = ''; // Also clear search input
         fetchItems(1); // Reset to page 1 and clear filters
     });
+
+    selectAllVisibleItems.addEventListener('change', () => {
+        dataViewEpoch += 1;
+        getVisibleBatchCheckboxes().forEach((checkbox) => {
+            checkbox.checked = selectAllVisibleItems.checked;
+            const item = getBatchItemFromRow(checkbox.closest('tr'));
+            const itemKey = getBatchItemKey(item);
+            if (checkbox.checked) {
+                selectedBatchItems.set(itemKey, item);
+            } else {
+                selectedBatchItems.delete(itemKey);
+            }
+        });
+        updateBatchSelectionUI();
+    });
+
+    clearBatchSelectionBtn.addEventListener('click', () => {
+        dataViewEpoch += 1;
+        clearBatchSelection();
+    });
+    batchReceiveBtn.addEventListener('click', () => handleBatchStatus('รับแล้ว'));
+    batchPostponeBtn.addEventListener('click', () => handleBatchStatus('เลื่อน'));
+    batchCancelBtn.addEventListener('click', () => handleBatchStatus('ยกเลิก'));
+
+    tableBody.addEventListener('change', (e) => {
+        const checkbox = e.target.closest('.batch-select-checkbox');
+        if (!checkbox) {
+            return;
+        }
+
+        dataViewEpoch += 1;
+        const item = getBatchItemFromRow(checkbox.closest('tr'));
+        const itemKey = getBatchItemKey(item);
+        if (checkbox.checked) {
+            selectedBatchItems.set(itemKey, item);
+        } else {
+            selectedBatchItems.delete(itemKey);
+        }
+        updateBatchSelectionUI();
+    });
     
     tableBody.addEventListener('click', (e) => {
+        if (e.target.closest('.batch-select-checkbox')) {
+            e.stopPropagation();
+            return;
+        }
+
         const button = e.target.closest('.update-btn');
         if (button) {
             handleUpdateStatus(button);
@@ -1403,6 +1679,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Initial Load ---
+    clearBatchSelection();
     organizeHeaderControls();
     chooseDbProfile(false).catch(console.error).then(() => loadCurrentUser()).catch(console.error).finally(() => {
         initializeAppState();
