@@ -13,6 +13,8 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,6 +31,60 @@
         .dataTables_wrapper .dataTables_paginate .paginate_button { border-radius: 0.8rem !important; border: 0 !important; }
         .dataTables_wrapper .dataTables_paginate .paginate_button.current, .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover { background: rgb(15 23 42) !important; color: white !important; }
         .dataTables_wrapper .dataTables_paginate .paginate_button:hover { background: rgb(241 245 249) !important; color: rgb(15 23 42) !important; }
+        .select2-container { width: 100% !important; }
+        .select2-container--default .select2-selection--single {
+            min-height: 50px;
+            border: 1px solid rgb(226 232 240);
+            border-radius: 1rem;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .select2-container--default.select2-container--focus .select2-selection--single,
+        .select2-container--default.select2-container--open .select2-selection--single {
+            border-color: rgb(52 211 153);
+            box-shadow: 0 0 0 4px rgb(209 250 229);
+            outline: none;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            color: rgb(15 23 42);
+            line-height: 1.5;
+            padding-left: 1rem;
+            padding-right: 2.5rem;
+            font-size: 1rem;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__placeholder { color: rgb(148 163 184); }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 100%;
+            right: 0.75rem;
+            top: 0;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__clear {
+            height: 100%;
+            margin-right: 2rem;
+            color: rgb(100 116 139);
+            font-size: 1.25rem;
+            line-height: 48px;
+        }
+        .select2-dropdown {
+            border: 1px solid rgb(226 232 240);
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.14);
+        }
+        .select2-container--default .select2-search--dropdown .select2-search__field {
+            border: 1px solid rgb(226 232 240);
+            border-radius: 0.75rem;
+            padding: 0.65rem 0.8rem;
+            outline: none;
+        }
+        .select2-container--default .select2-search--dropdown .select2-search__field:focus {
+            border-color: rgb(52 211 153);
+            box-shadow: 0 0 0 3px rgb(209 250 229);
+        }
+        .select2-results__option { padding: 0.7rem 1rem; }
+        .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable { background-color: rgb(5 150 105); }
     </style>
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-900">
@@ -83,11 +139,12 @@
                     <div><label for="password" class="mb-1 block text-sm font-medium text-slate-700">รหัสผ่าน</label><input id="password" name="password" type="password" class="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" placeholder="เว้นว่างถ้าไม่ต้องการเปลี่ยน"></div>
                     <div><label for="role" class="mb-1 block text-sm font-medium text-slate-700">บทบาท</label><select id="role" name="role" class="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"><option value="user">user</option><option value="admin">admin</option></select></div>
                     <div><label for="defaultLocationCode" class="mb-1 block text-sm font-medium text-slate-700">คลังเริ่มต้น</label><select id="defaultLocationCode" name="default_location_code" class="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"><option value="">เลือกได้ทุกคลัง</option></select></div>
+                    <div><label for="salesLname" class="mb-1 block text-sm font-medium text-slate-700">ชื่อพนักงานขาย</label><select id="salesLname" name="sales_lname" class="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"><option value="">ไม่ผูกชื่อพนักงานขาย</option></select></div>
                     <div><label for="userStatus" class="mb-1 block text-sm font-medium text-slate-700">สถานะ</label><select id="userStatus" name="is_active" class="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"><option value="1">เปิดใช้งาน</option><option value="0">ปิดใช้งาน</option></select></div>
                     <div class="md:col-span-2"><button type="submit" class="rounded-2xl bg-emerald-600 px-5 py-3 font-semibold text-white transition hover:bg-emerald-700">บันทึกผู้ใช้</button></div>
                 </form>
                 <div class="mt-6 overflow-x-auto">
-                    <table id="usersTable" class="w-full text-left"><thead class="bg-slate-50"><tr><th class="px-4 py-3 text-xs uppercase text-slate-500">ชื่อผู้ใช้</th><th class="px-4 py-3 text-xs uppercase text-slate-500">ชื่อแสดงผล</th><th class="px-4 py-3 text-xs uppercase text-slate-500">บทบาท</th><th class="px-4 py-3 text-xs uppercase text-slate-500">คลังเริ่มต้น</th><th class="px-4 py-3 text-center text-xs uppercase text-slate-500">สถานะ</th><th class="px-4 py-3 text-center text-xs uppercase text-slate-500">จัดการ</th></tr></thead><tbody id="usersTableBody" class="divide-y divide-slate-200"></tbody></table>
+                    <table id="usersTable" class="w-full text-left"><thead class="bg-slate-50"><tr><th class="px-4 py-3 text-xs uppercase text-slate-500">ชื่อผู้ใช้</th><th class="px-4 py-3 text-xs uppercase text-slate-500">ชื่อแสดงผล</th><th class="px-4 py-3 text-xs uppercase text-slate-500">บทบาท</th><th class="px-4 py-3 text-xs uppercase text-slate-500">คลังเริ่มต้น</th><th class="px-4 py-3 text-xs uppercase text-slate-500">ชื่อพนักงานขาย</th><th class="px-4 py-3 text-center text-xs uppercase text-slate-500">สถานะ</th><th class="px-4 py-3 text-center text-xs uppercase text-slate-500">จัดการ</th></tr></thead><tbody id="usersTableBody" class="divide-y divide-slate-200"></tbody></table>
                 </div>
             </section>
 
@@ -134,6 +191,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         dbProfiles: './api/db_profiles.php', selectDbProfile: './api/select_db_profile.php',
         locations: './api/admin_get_locations.php', saveLocation: './api/admin_save_location.php', deleteLocation: './api/admin_delete_location.php',
         users: './api/admin_get_users.php', saveUser: './api/admin_save_user.php', deleteUser: './api/admin_delete_user.php',
+        salesNames: './api/admin_search_sales_names.php',
         employees: './api/admin_get_employees.php', saveEmployee: './api/admin_save_employee.php', deleteEmployee: './api/admin_delete_employee.php',
         sounds: './api/get_sounds.php', uploadSound: './api/upload_sound.php', deleteSound: './api/delete_sound.php'
     };
@@ -147,6 +205,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const employeesTableBody = document.getElementById('employeesTableBody');
     const soundsTableBody = document.getElementById('soundsTableBody');
     const defaultLocationCode = document.getElementById('defaultLocationCode');
+    const salesLname = document.getElementById('salesLname');
     const employeeLocationCode = document.getElementById('employeeLocationCode');
     const soundLocationCode = document.getElementById('soundLocationCode');
     const soundFileInput = document.getElementById('soundFile');
@@ -186,9 +245,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     const resetLocationForm = () => { locationForm.reset(); locationId.value = ''; locationStatus.value = '1'; };
-    const resetUserForm = () => { userForm.reset(); userId.value = ''; userStatus.value = '1'; role.value = 'user'; defaultLocationCode.value = ''; };
+    const setSalesNameValue = (value) => {
+        const normalizedValue = value || '';
+        const hasOption = Array.from(salesLname.options).some((option) => option.value === normalizedValue);
+        if (normalizedValue && !hasOption) {
+            salesLname.appendChild(new Option(normalizedValue, normalizedValue, true, true));
+        }
+        salesLname.value = normalizedValue;
+        if (window.jQuery && $(salesLname).data('select2')) {
+            $(salesLname).trigger('change');
+        }
+    };
+    const resetUserForm = () => { userForm.reset(); userId.value = ''; userStatus.value = '1'; role.value = 'user'; defaultLocationCode.value = ''; setSalesNameValue(''); };
     const resetEmployeeForm = () => { employeeForm.reset(); employeeId.value = ''; employeeStatus.value = '1'; employeeLocationCode.value = ''; };
     const resetSoundForm = () => { uploadSoundForm.reset(); soundLocationCode.value = ''; };
+
+    const initSalesNameSelect = () => {
+        $(salesLname).select2({
+            width: '100%',
+            placeholder: 'เลือกชื่อจากข้อมูลบิล',
+            allowClear: true,
+            ajax: {
+                url: endpoints.salesNames,
+                dataType: 'json',
+                delay: 250,
+                cache: true,
+                data: (params) => ({ q: params.term || '', limit: 30 }),
+                processResults: (data) => ({ results: data.results || [] })
+            }
+        });
+    };
 
     const ensureAdmin = async () => {
         const response = await fetch(endpoints.me, { credentials: 'same-origin' });
@@ -307,7 +393,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         usersTableBody.innerHTML = '';
         result.data.forEach((user) => {
             const row = document.createElement('tr');
-            row.innerHTML = `<td class="px-4 py-3 font-semibold text-slate-900">${user.username}</td><td class="px-4 py-3 text-slate-700">${user.full_name}</td><td class="px-4 py-3 text-slate-700">${user.role}</td><td class="px-4 py-3 text-slate-700">${user.default_location_code || '-'}</td><td class="px-4 py-3 text-center text-slate-700">${user.is_active ? 'ใช้งาน' : 'ปิด'}</td><td class="px-4 py-3 text-center"><div class="inline-flex items-center whitespace-nowrap"><button type="button" class="edit-user mr-2 rounded-xl bg-emerald-100 px-3 py-1.5 text-sm font-semibold text-emerald-700" data-user="${encodeURIComponent(JSON.stringify(user))}">แก้ไข</button><button type="button" class="delete-user rounded-xl bg-red-100 px-3 py-1.5 text-sm font-semibold text-red-700" data-id="${user.id}">ลบ</button></div></td>`;
+            row.innerHTML = `<td class="px-4 py-3 font-semibold text-slate-900">${user.username}</td><td class="px-4 py-3 text-slate-700">${user.full_name}</td><td class="px-4 py-3 text-slate-700">${user.role}</td><td class="px-4 py-3 text-slate-700">${user.default_location_code || '-'}</td><td class="px-4 py-3 text-slate-700">${user.sales_lname || '-'}</td><td class="px-4 py-3 text-center text-slate-700">${user.is_active ? 'ใช้งาน' : 'ปิด'}</td><td class="px-4 py-3 text-center"><div class="inline-flex items-center whitespace-nowrap"><button type="button" class="edit-user mr-2 rounded-xl bg-emerald-100 px-3 py-1.5 text-sm font-semibold text-emerald-700" data-user="${encodeURIComponent(JSON.stringify(user))}">แก้ไข</button><button type="button" class="delete-user rounded-xl bg-red-100 px-3 py-1.5 text-sm font-semibold text-red-700" data-id="${user.id}">ลบ</button></div></td>`;
             usersTableBody.appendChild(row);
         });
         rebuildDataTable('usersTable');
@@ -452,6 +538,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             role.value = user.role;
             userStatus.value = String(user.is_active);
             defaultLocationCode.value = user.default_location_code || '';
+            setSalesNameValue(user.sales_lname || '');
             return;
         }
         const deleteButton = event.target.closest('.delete-user');
@@ -522,6 +609,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
         await ensureAdmin();
+        initSalesNameSelect();
         await loadLocations();
         await loadUsers();
         await loadEmployees();

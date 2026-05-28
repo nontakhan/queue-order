@@ -188,6 +188,7 @@ function app_user_payload(array $row): array
         'role' => $row['role'],
         'is_active' => (int) $row['is_active'],
         'default_location_code' => $row['default_location_code'] ?? null,
+        'sales_lname' => $row['sales_lname'] ?? null,
     ];
 }
 

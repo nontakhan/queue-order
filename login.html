@@ -181,7 +181,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const meResponse = await fetch('./api/auth_me.php', { credentials: 'same-origin' });
         const meResult = await meResponse.json();
         if (meResult.authenticated) {
-            window.location.href = 'admin.html';
+            window.location.href = meResult.user && meResult.user.role === 'admin' ? 'admin.html' : 'my_bills.html';
             return;
         }
     } catch (error) {
@@ -206,7 +206,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 throw new Error(result.message || 'เข้าสู่ระบบไม่สำเร็จ');
             }
 
-            window.location.href = 'admin.html';
+            window.location.href = result.user && result.user.role === 'admin' ? 'admin.html' : 'my_bills.html';
         } catch (error) {
             await Swal.fire('เข้าสู่ระบบไม่สำเร็จ', error.message, 'error');
         } finally {

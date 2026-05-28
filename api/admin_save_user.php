@@ -14,6 +14,8 @@ $fullName = app_get_post('full_name');
 $role = app_get_post('role', 'user') === 'admin' ? 'admin' : 'user';
 $defaultLocationCode = app_get_post('default_location_code', '');
 $defaultLocationCode = $defaultLocationCode === '' ? null : strtoupper($defaultLocationCode);
+$salesLname = app_get_post('sales_lname', '');
+$salesLname = $salesLname === '' ? null : $salesLname;
 $isActive = app_get_post('is_active', '1') === '1' ? 1 : 0;
 $password = app_get_post('password', '');
 
@@ -26,11 +28,11 @@ $conn = app_db();
 if ($id > 0) {
     if ($password !== '') {
         $passwordHash = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $conn->prepare('UPDATE app_users SET username = ?, full_name = ?, role = ?, default_location_code = ?, is_active = ?, password_hash = ? WHERE id = ?');
-        $stmt->bind_param('ssssisi', $username, $fullName, $role, $defaultLocationCode, $isActive, $passwordHash, $id);
+        $stmt = $conn->prepare('UPDATE app_users SET username = ?, full_name = ?, role = ?, default_location_code = ?, sales_lname = ?, is_active = ?, password_hash = ? WHERE id = ?');
+        $stmt->bind_param('sssssisi', $username, $fullName, $role, $defaultLocationCode, $salesLname, $isActive, $passwordHash, $id);
     } else {
-        $stmt = $conn->prepare('UPDATE app_users SET username = ?, full_name = ?, role = ?, default_location_code = ?, is_active = ? WHERE id = ?');
-        $stmt->bind_param('ssssii', $username, $fullName, $role, $defaultLocationCode, $isActive, $id);
+        $stmt = $conn->prepare('UPDATE app_users SET username = ?, full_name = ?, role = ?, default_location_code = ?, sales_lname = ?, is_active = ? WHERE id = ?');
+        $stmt->bind_param('sssssii', $username, $fullName, $role, $defaultLocationCode, $salesLname, $isActive, $id);
     }
 } else {
     if ($password === '') {
@@ -38,8 +40,8 @@ if ($id > 0) {
         app_json_response(['success' => false, 'message' => 'Password is required for new user'], 422);
     }
     $passwordHash = password_hash($password, PASSWORD_DEFAULT);
-    $stmt = $conn->prepare('INSERT INTO app_users (username, password_hash, full_name, role, default_location_code, is_active) VALUES (?, ?, ?, ?, ?, ?)');
-    $stmt->bind_param('sssssi', $username, $passwordHash, $fullName, $role, $defaultLocationCode, $isActive);
+    $stmt = $conn->prepare('INSERT INTO app_users (username, password_hash, full_name, role, default_location_code, sales_lname, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    $stmt->bind_param('ssssssi', $username, $passwordHash, $fullName, $role, $defaultLocationCode, $salesLname, $isActive);
 }
 
 if (!$stmt->execute()) {

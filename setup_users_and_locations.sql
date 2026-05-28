@@ -15,10 +15,12 @@ CREATE TABLE IF NOT EXISTS `app_users` (
   `full_name` VARCHAR(255) NOT NULL,
   `role` ENUM('admin', 'user') NOT NULL DEFAULT 'user',
   `default_location_code` VARCHAR(50) DEFAULT NULL,
+  `sales_lname` VARCHAR(255) DEFAULT NULL,
   `is_active` TINYINT(1) NOT NULL DEFAULT 1,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY `uq_app_users_username` (`username`)
+  UNIQUE KEY `uq_app_users_username` (`username`),
+  KEY `idx_app_users_sales_lname` (`sales_lname`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `app_employees` (

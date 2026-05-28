@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>บิลของฉัน - Queue Order</title>
+    <link rel="icon" href="favicon.ico" sizes="any">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#16a34a">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Sarabun', sans-serif; }</style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900">
+    <div class="mx-auto max-w-7xl p-4 sm:p-6">
+        <header class="mb-6 rounded-2xl bg-slate-900 p-5 text-white shadow">
+            <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <p class="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-300">Queue Order</p>
+                    <h1 class="mt-2 text-2xl font-bold md:text-3xl">บิลของฉัน</h1>
+                    <p id="userSummary" class="mt-2 text-sm text-slate-300"></p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <a href="index.html" class="rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold transition hover:bg-white/15">หน้าหลัก</a>
+                    <button id="logoutBtn" type="button" class="rounded-xl bg-red-400/20 px-4 py-2 text-sm font-semibold text-red-100 transition hover:bg-red-400/30">ออกจากระบบ</button>
+                </div>
+            </div>
+        </header>
+
+        <section class="mb-4 rounded-2xl bg-white p-4 shadow-sm">
+            <form id="filterForm" class="grid gap-3 md:grid-cols-[1.4fr,1fr,1fr,1fr,auto] md:items-end">
+                <div>
+                    <label for="searchInput" class="mb-1 block text-sm font-medium text-slate-700">ค้นหา</label>
+                    <input id="searchInput" type="search" class="w-full rounded-xl border border-slate-200 px-4 py-2.5 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" placeholder="เลขบิล ลูกค้า หรือสินค้า">
+                </div>
+                <div>
+                    <label for="statusSelect" class="mb-1 block text-sm font-medium text-slate-700">สถานะ</label>
+                    <select id="statusSelect" class="w-full rounded-xl border border-slate-200 px-4 py-2.5 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100">
+                        <option value="pending">รอตรวจรับ/รับบางส่วน</option>
+                        <option value="all">ทุกสถานะ</option>
+                        <option value="รับแล้ว">รับแล้ว</option>
+                        <option value="เลื่อน">เลื่อน</option>
+                        <option value="ยกเลิก">ยกเลิก</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="startDate" class="mb-1 block text-sm font-medium text-slate-700">ตั้งแต่</label>
+                    <input id="startDate" type="date" class="w-full rounded-xl border border-slate-200 px-4 py-2.5 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100">
+                </div>
+                <div>
+                    <label for="endDate" class="mb-1 block text-sm font-medium text-slate-700">ถึง</label>
+                    <input id="endDate" type="date" class="w-full rounded-xl border border-slate-200 px-4 py-2.5 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100">
+                </div>
+                <button type="submit" class="rounded-xl bg-emerald-600 px-5 py-2.5 font-semibold text-white transition hover:bg-emerald-700">ค้นหา</button>
+            </form>
+        </section>
+
+        <section class="rounded-2xl bg-white shadow-sm">
+            <div id="batchActionBar" class="mx-4 mt-4 hidden flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+                <p class="text-sm font-semibold text-red-900">เลือกแล้ว <span id="selectedCount">0</span> รายการ</p>
+                <div class="flex flex-wrap gap-2">
+                    <button type="button" id="clearSelectionBtn" class="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">ยกเลิกการเลือก</button>
+                    <button type="button" id="deleteSelectedBtn" class="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50">ลบรายการที่เลือก</button>
+                </div>
+            </div>
+            <div id="tableStatus" class="p-5 text-sm text-slate-500">กำลังโหลดข้อมูล...</div>
+            <div class="overflow-x-auto">
+                <table class="hidden min-w-full divide-y divide-slate-200" id="billsTable">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-4 py-3 text-center"><input type="checkbox" id="selectAllVisibleItems" class="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500" aria-label="เลือกรายการทั้งหมด"></th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">เลขบิล</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">วันที่</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">ลูกค้า</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">สินค้า</th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">จำนวน</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">คลัง</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">สถานะ</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold uppercase text-slate-500">รายละเอียด</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-slate-200"></tbody>
+                </table>
+            </div>
+            <div id="pagination" class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 p-4"></div>
+        </section>
+    </div>
+
+    <div id="detailsModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/75 p-4">
+        <div class="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[2rem] bg-white p-6 text-slate-900 shadow-2xl md:p-8">
+            <div class="mb-5 flex items-start justify-between gap-4">
+                <div>
+                    <p class="text-sm font-semibold uppercase tracking-[0.22em] text-emerald-600">Bill Details</p>
+                    <h2 class="mt-2 text-2xl font-bold">รายละเอียดบิล</h2>
+                </div>
+                <button type="button" id="closeDetailsModal" class="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-200">ปิด</button>
+            </div>
+            <div id="detailsContent"></div>
+        </div>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    const userSummary = document.getElementById('userSummary');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const filterForm = document.getElementById('filterForm');
+    const searchInput = document.getElementById('searchInput');
+    const statusSelect = document.getElementById('statusSelect');
+    const startDate = document.getElementById('startDate');
+    const endDate = document.getElementById('endDate');
+    const tableStatus = document.getElementById('tableStatus');
+    const billsTable = document.getElementById('billsTable');
+    const tableBody = document.getElementById('tableBody');
+    const pagination = document.getElementById('pagination');
+    const batchActionBar = document.getElementById('batchActionBar');
+    const selectedCount = document.getElementById('selectedCount');
+    const selectAllVisibleItems = document.getElementById('selectAllVisibleItems');
+    const clearSelectionBtn = document.getElementById('clearSelectionBtn');
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    const detailsModal = document.getElementById('detailsModal');
+    const closeDetailsModal = document.getElementById('closeDetailsModal');
+    const detailsContent = document.getElementById('detailsContent');
+    let currentPage = 1;
+    const selectedItems = new Map();
+
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+    }[char]));
+
+    const formatDate = (value) => value ? new Date(value).toLocaleDateString('th-TH', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '-';
+    const formatQty = (value) => Number(value || 0).toLocaleString('th-TH', { maximumFractionDigits: 3 });
+
+    const buildStatus = (item) => {
+        const status = item.delivery_status || 'รอตรวจรับ';
+        const detail = item.received_by_employee || item.delivery_remark || '';
+        return `<div class="font-semibold text-slate-800">${escapeHtml(status)}</div>${detail ? `<div class="text-xs text-slate-500">${escapeHtml(detail)}</div>` : ''}`;
+    };
+
+    const getItemKey = (item) => JSON.stringify([item.docno || '', item.cd_code || '', item.unit || '', String(item.UNITPRICE || '0')]);
+    const getRowItem = (row) => ({
+        docno: row?.dataset.docno || '',
+        cd_code: row?.dataset.cdcode || '',
+        unit: row?.dataset.unit || '',
+        price: row?.dataset.price || '0',
+        shipflag: row?.dataset.shipflag || '0'
+    });
+    const getVisibleCheckboxes = () => Array.from(tableBody.querySelectorAll('.item-checkbox'));
+
+    const updateSelectionUI = () => {
+        const count = selectedItems.size;
+        const visibleCheckboxes = getVisibleCheckboxes();
+        const visibleChecked = visibleCheckboxes.filter((checkbox) => checkbox.checked).length;
+        selectedCount.textContent = String(count);
+        batchActionBar.classList.toggle('hidden', count === 0);
+        batchActionBar.classList.toggle('flex', count > 0);
+        deleteSelectedBtn.disabled = count === 0;
+        selectAllVisibleItems.disabled = visibleCheckboxes.length === 0;
+        selectAllVisibleItems.checked = visibleCheckboxes.length > 0 && visibleChecked === visibleCheckboxes.length;
+        selectAllVisibleItems.indeterminate = visibleChecked > 0 && visibleChecked < visibleCheckboxes.length;
+    };
+
+    const clearSelection = () => {
+        selectedItems.clear();
+        getVisibleCheckboxes().forEach((checkbox) => { checkbox.checked = false; });
+        updateSelectionUI();
+    };
+
+    const renderRows = (items) => {
+        tableBody.innerHTML = '';
+        items.forEach((item) => {
+            const itemKey = getItemKey(item);
+            const row = document.createElement('tr');
+            row.className = 'cursor-pointer hover:bg-emerald-50';
+            row.dataset.docno = item.docno || '';
+            row.dataset.cdcode = item.cd_code || '';
+            row.dataset.unit = item.unit || '';
+            row.dataset.price = item.UNITPRICE || '0';
+            row.dataset.shipflag = item.shipflag || '0';
+            row.innerHTML = `
+                <td class="px-4 py-3 text-center"><input type="checkbox" class="item-checkbox h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500" ${selectedItems.has(itemKey) ? 'checked' : ''} aria-label="เลือก ${escapeHtml(item.docno)}"></td>
+                <td class="px-4 py-3 font-semibold text-slate-900">${escapeHtml(item.docno)}</td>
+                <td class="px-4 py-3 text-slate-600">${formatDate(item.docdate)}</td>
+                <td class="px-4 py-3 text-slate-700">${escapeHtml(item.customer_name || '-')}</td>
+                <td class="px-4 py-3 text-slate-700"><div>${escapeHtml(item.cd_name || '-')}</div><div class="text-xs text-slate-400">${escapeHtml(item.cd_code || '')}</div></td>
+                <td class="px-4 py-3 text-right text-slate-700">${formatQty(item.qty)} ${escapeHtml(item.unit || '')}</td>
+                <td class="px-4 py-3 text-slate-700"><div>${escapeHtml(item.location_code || '-')}</div><div class="text-xs text-slate-400">${escapeHtml(item.location || '')}</div></td>
+                <td class="px-4 py-3">${buildStatus(item)}</td>
+                <td class="px-4 py-3 text-center"><button type="button" class="details-btn rounded-xl bg-emerald-100 px-3 py-1.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-200">ดู</button></td>
+            `;
+            tableBody.appendChild(row);
+        });
+        updateSelectionUI();
+    };
+
+    const renderPagination = (meta) => {
+        pagination.innerHTML = '';
+        if (!meta || meta.total_items === 0) return;
+        const info = document.createElement('div');
+        info.className = 'text-sm text-slate-500';
+        info.textContent = `ทั้งหมด ${meta.total_items.toLocaleString('th-TH')} รายการ หน้า ${meta.current_page} / ${Math.max(meta.total_pages, 1)}`;
+
+        const buttons = document.createElement('div');
+        buttons.className = 'flex gap-2';
+        const prev = document.createElement('button');
+        prev.type = 'button';
+        prev.className = 'rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-40';
+        prev.textContent = 'ก่อนหน้า';
+        prev.disabled = meta.current_page <= 1;
+        prev.addEventListener('click', () => loadBills(meta.current_page - 1));
+
+        const next = document.createElement('button');
+        next.type = 'button';
+        next.className = 'rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-40';
+        next.textContent = 'ถัดไป';
+        next.disabled = meta.current_page >= meta.total_pages;
+        next.addEventListener('click', () => loadBills(meta.current_page + 1));
+
+        buttons.append(prev, next);
+        pagination.append(info, buttons);
+    };
+
+    const buildQuery = (page) => {
+        const params = new URLSearchParams({ page: String(page), limit: '20' });
+        if (searchInput.value.trim()) params.set('search', searchInput.value.trim());
+        if (startDate.value) params.set('startDate', startDate.value);
+        if (endDate.value) params.set('endDate', endDate.value);
+        if (statusSelect.value === 'all') {
+            params.set('include_all_status', '1');
+        } else if (statusSelect.value !== 'pending') {
+            params.set('status', statusSelect.value);
+        }
+        return params.toString();
+    };
+
+    const loadBills = async (page = 1) => {
+        currentPage = page;
+        clearSelection();
+        tableStatus.textContent = 'กำลังโหลดข้อมูล...';
+        tableStatus.classList.remove('hidden');
+        billsTable.classList.add('hidden');
+        const response = await fetch(`./api/fetch_my_bills.php?${buildQuery(page)}`, { credentials: 'same-origin' });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || 'โหลดบิลของฉันไม่สำเร็จ');
+        }
+        userSummary.textContent = `แสดงรายการของ ${result.sales_lname}`;
+        if (!result.data.length) {
+            tableStatus.textContent = 'ไม่พบรายการตามเงื่อนไข';
+            tableBody.innerHTML = '';
+            renderPagination(result.pagination);
+            updateSelectionUI();
+            return;
+        }
+        renderRows(result.data);
+        renderPagination(result.pagination);
+        tableStatus.classList.add('hidden');
+        billsTable.classList.remove('hidden');
+    };
+
+    const buildDetailSection = (title, rows) => `
+        <section class="mb-5">
+            <h3 class="mb-3 border-b pb-2 text-lg font-semibold text-slate-800">${escapeHtml(title)}</h3>
+            <div class="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
+                ${rows.map((row) => `<div class="${row.wide ? 'md:col-span-2' : ''}"><p class="text-slate-500">${escapeHtml(row.label)}</p><p class="font-semibold text-slate-900">${escapeHtml(row.value || '-')}</p></div>`).join('')}
+            </div>
+        </section>
+    `;
+
+    const buildReceiveHistory = (history) => {
+        if (!Array.isArray(history) || history.length === 0) {
+            return '';
+        }
+        return `
+            <section>
+                <h3 class="mb-3 border-b pb-2 text-lg font-semibold text-slate-800">ประวัติรับบางส่วน</h3>
+                <div class="space-y-2">
+                    ${history.map((entry) => `
+                        <div class="rounded-xl bg-slate-50 p-3 text-sm">
+                            <div class="font-semibold text-slate-800">${formatQty(entry.received_qty)} โดย ${escapeHtml(entry.received_by_employee || '-')}</div>
+                            <div class="text-slate-500">${entry.received_at ? escapeHtml(new Date(entry.received_at).toLocaleString('th-TH')) : '-'}</div>
+                            ${entry.note ? `<div class="mt-1 text-slate-600">${escapeHtml(entry.note)}</div>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </section>
+        `;
+    };
+
+    const showDetails = async (item) => {
+        detailsModal.classList.remove('hidden');
+        detailsModal.classList.add('flex');
+        detailsContent.innerHTML = '<div class="py-8 text-center text-slate-500">กำลังโหลดรายละเอียด...</div>';
+        const params = new URLSearchParams({
+            docno: item.docno,
+            cd_code: item.cd_code,
+            unit: item.unit,
+            price: item.price
+        });
+        const response = await fetch(`./api/get_my_bill_details.php?${params.toString()}`, { credentials: 'same-origin' });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || 'โหลดรายละเอียดไม่สำเร็จ');
+        }
+        const data = result.data;
+        detailsContent.innerHTML = [
+            buildDetailSection('ข้อมูลเอกสาร', [
+                { label: 'เลขที่เอกสาร', value: data.docno },
+                { label: 'วันที่เอกสาร', value: formatDate(data.docdate || data.DOCDATE) },
+                { label: 'ลูกค้า', value: data.CUSTNAME || data.customer_name },
+                { label: 'สาขา', value: data.branch },
+                { label: 'พนักงานขาย', value: data.user_lname },
+                { label: 'หมายเหตุเอกสาร', value: data.REMARK, wide: true }
+            ]),
+            buildDetailSection('ข้อมูลสินค้า', [
+                { label: 'ชื่อสินค้า', value: data.cd_name, wide: true },
+                { label: 'รหัสสินค้า', value: data.cd_code },
+                { label: 'จำนวน', value: `${formatQty(data.qty)} ${data.Lname_unit || data.unit || ''}` },
+                { label: 'ราคา/หน่วย', value: Number(data.UNITPRICE || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+                { label: 'รวมเป็นเงิน', value: Number(data.NETAMOUNT || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
+            ]),
+            buildDetailSection('ข้อมูลการจัดส่ง', [
+                { label: 'คลัง', value: `${data.location_code || '-'} ${data.location || ''}` },
+                { label: 'รูปแบบ', value: String(data.SHIPFLAG || data.shipflag || '0') === '1' ? 'แผนกส่ง' : 'ลูกค้ารับเอง' },
+                { label: 'สถานะ', value: data.delivery_status || 'รอตรวจรับ' },
+                { label: 'เจ้าหน้าที่รับสินค้า', value: data.received_by_employee },
+                { label: 'หมายเหตุการตรวจรับ', value: data.delivery_remark, wide: true }
+            ]),
+            buildReceiveHistory(data.receive_history)
+        ].join('');
+    };
+
+    const deleteSelected = async () => {
+        const items = Array.from(selectedItems.values());
+        if (items.length === 0) return;
+        const confirmed = await Swal.fire({
+            title: `ลบ ${items.length} รายการ?`,
+            text: 'รายการที่ลบจะหายจากฐานข้อมูลของชุดข้อมูลนี้',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'ลบรายการ',
+            cancelButtonText: 'ยกเลิก',
+            confirmButtonColor: '#dc2626'
+        });
+        if (!confirmed.isConfirmed) return;
+
+        const formData = new FormData();
+        formData.append('items', JSON.stringify(items));
+        const response = await fetch('./api/delete_my_bills.php', { method: 'POST', body: formData, credentials: 'same-origin' });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || 'ลบรายการไม่สำเร็จ');
+        }
+        await Swal.fire('สำเร็จ', `ลบแล้ว ${result.deleted} รายการ`, 'success');
+        await loadBills(currentPage);
+    };
+
+    logoutBtn.addEventListener('click', async () => {
+        await fetch('./api/auth_logout.php', { method: 'POST', credentials: 'same-origin' });
+        window.location.href = 'login.html';
+    });
+
+    filterForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        try {
+            await loadBills(1);
+        } catch (error) {
+            await Swal.fire('ผิดพลาด', error.message, 'error');
+        }
+    });
+
+    selectAllVisibleItems.addEventListener('change', () => {
+        getVisibleCheckboxes().forEach((checkbox) => {
+            checkbox.checked = selectAllVisibleItems.checked;
+            const item = getRowItem(checkbox.closest('tr'));
+            const key = JSON.stringify([item.docno, item.cd_code, item.unit, item.price]);
+            if (checkbox.checked) {
+                selectedItems.set(key, item);
+            } else {
+                selectedItems.delete(key);
+            }
+        });
+        updateSelectionUI();
+    });
+
+    clearSelectionBtn.addEventListener('click', clearSelection);
+    deleteSelectedBtn.addEventListener('click', async () => {
+        try {
+            await deleteSelected();
+        } catch (error) {
+            await Swal.fire('ผิดพลาด', error.message, 'error');
+        }
+    });
+
+    tableBody.addEventListener('change', (event) => {
+        const checkbox = event.target.closest('.item-checkbox');
+        if (!checkbox) return;
+        const item = getRowItem(checkbox.closest('tr'));
+        const key = JSON.stringify([item.docno, item.cd_code, item.unit, item.price]);
+        if (checkbox.checked) {
+            selectedItems.set(key, item);
+        } else {
+            selectedItems.delete(key);
+        }
+        updateSelectionUI();
+    });
+
+    tableBody.addEventListener('click', async (event) => {
+        if (event.target.closest('.item-checkbox')) return;
+        const row = event.target.closest('tr');
+        if (!row) return;
+        try {
+            await showDetails(getRowItem(row));
+        } catch (error) {
+            await Swal.fire('ผิดพลาด', error.message, 'error');
+        }
+    });
+
+    closeDetailsModal.addEventListener('click', () => {
+        detailsModal.classList.add('hidden');
+        detailsModal.classList.remove('flex');
+    });
+
+    detailsModal.addEventListener('click', (event) => {
+        if (event.target === detailsModal) {
+            detailsModal.classList.add('hidden');
+            detailsModal.classList.remove('flex');
+        }
+    });
+
+    try {
+        const meResponse = await fetch('./api/auth_me.php', { credentials: 'same-origin' });
+        const meResult = await meResponse.json();
+        if (!meResult.authenticated) {
+            window.location.href = 'login.html';
+            return;
+        }
+        userSummary.textContent = `${meResult.user.full_name || meResult.user.username}`;
+        await loadBills(currentPage);
+    } catch (error) {
+        await Swal.fire('ผิดพลาด', error.message, 'error');
+    }
+});
+</script>
+</body>
+</html>
