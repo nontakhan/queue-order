@@ -135,10 +135,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     const formatDate = (value) => value ? new Date(value).toLocaleDateString('th-TH', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '-';
     const formatQty = (value) => Number(value || 0).toLocaleString('th-TH', { maximumFractionDigits: 3 });
 
+    const getStatusBadgeClass = (status) => ({
+        'รอตรวจรับ': 'border-slate-200 bg-slate-100 text-slate-700',
+        'รับบางส่วน': 'border-orange-200 bg-orange-100 text-orange-800',
+        'รับแล้ว': 'border-green-200 bg-green-100 text-green-800',
+        'เลื่อน': 'border-yellow-200 bg-yellow-100 text-yellow-800',
+        'ยกเลิก': 'border-red-200 bg-red-100 text-red-800'
+    }[status] || 'border-slate-200 bg-slate-100 text-slate-700');
+
+    const buildStatusBadge = (status) => {
+        const displayStatus = status || 'รอตรวจรับ';
+        return `<span class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${getStatusBadgeClass(displayStatus)}">${escapeHtml(displayStatus)}</span>`;
+    };
+
     const buildStatus = (item) => {
         const status = item.delivery_status || 'รอตรวจรับ';
         const detail = item.received_by_employee || item.delivery_remark || '';
-        return `<div class="font-semibold text-slate-800">${escapeHtml(status)}</div>${detail ? `<div class="text-xs text-slate-500">${escapeHtml(detail)}</div>` : ''}`;
+        return `<div>${buildStatusBadge(status)}</div>${detail ? `<div class="mt-1 text-xs text-slate-500">${escapeHtml(detail)}</div>` : ''}`;
     };
 
     const getItemKey = (item) => JSON.stringify([item.docno || '', item.cd_code || '', item.unit || '', String(item.UNITPRICE || '0')]);
@@ -266,7 +279,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <section class="mb-5">
             <h3 class="mb-3 border-b pb-2 text-lg font-semibold text-slate-800">${escapeHtml(title)}</h3>
             <div class="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
-                ${rows.map((row) => `<div class="${row.wide ? 'md:col-span-2' : ''}"><p class="text-slate-500">${escapeHtml(row.label)}</p><p class="font-semibold text-slate-900">${escapeHtml(row.value || '-')}</p></div>`).join('')}
+                ${rows.map((row) => `<div class="${row.wide ? 'md:col-span-2' : ''}"><p class="text-slate-500">${escapeHtml(row.label)}</p><div class="font-semibold text-slate-900">${row.html || escapeHtml(row.value || '-')}</div></div>`).join('')}
             </div>
         </section>
     `;
@@ -326,7 +339,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             buildDetailSection('ข้อมูลการจัดส่ง', [
                 { label: 'คลัง', value: `${data.location_code || '-'} ${data.location || ''}` },
                 { label: 'รูปแบบ', value: String(data.SHIPFLAG || data.shipflag || '0') === '1' ? 'แผนกส่ง' : 'ลูกค้ารับเอง' },
-                { label: 'สถานะ', value: data.delivery_status || 'รอตรวจรับ' },
+                { label: 'สถานะ', html: buildStatusBadge(data.delivery_status || 'รอตรวจรับ') },
                 { label: 'เจ้าหน้าที่รับสินค้า', value: data.received_by_employee },
                 { label: 'หมายเหตุการตรวจรับ', value: data.delivery_remark, wide: true }
             ]),
