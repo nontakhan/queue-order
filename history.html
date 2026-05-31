@@ -88,10 +88,25 @@
             </div>
 
             <div class="overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white/95 text-slate-900 shadow-xl shadow-slate-200/70 backdrop-blur">
+                <div id="bulkDeleteToolbar" class="hidden border-b border-slate-200 bg-red-50/80 px-4 py-3 sm:px-6">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <label class="inline-flex items-center gap-3 text-sm font-semibold text-red-800">
+                            <input id="selectAllCancelledItems" type="checkbox" class="h-5 w-5 rounded border-red-300 text-red-600 focus:ring-red-500">
+                            <span>เลือกทั้งหมดในหน้านี้</span>
+                        </label>
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <span id="selectedCancelledCount" class="text-sm font-medium text-red-700">เลือกแล้ว 0 รายการ</span>
+                            <button id="bulkDeleteBtn" type="button" class="inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50" disabled>ลบรายการที่เลือก</button>
+                        </div>
+                    </div>
+                </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left">
                         <thead id="tableHeader" class="bg-gray-50 border-b border-gray-200">
                             <tr>
+                                <th id="selectHeaderCell" class="hidden w-12 px-4 py-3 text-center">
+                                    <span class="sr-only">เลือก</span>
+                                </th>
                                 <th class="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">DocNo</th>
                                 <th class="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">วันที่เอกสาร</th>
                                 <th class="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">ชื่อลูกค้า</th>
@@ -127,6 +142,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const detailsContent = document.getElementById('detailsContent');
     const closeDetailsModal = document.getElementById('closeDetailsModal');
     const manageHeaderCell = document.getElementById('manageHeaderCell');
+    const selectHeaderCell = document.getElementById('selectHeaderCell');
+    const bulkDeleteToolbar = document.getElementById('bulkDeleteToolbar');
+    const selectAllCancelledItems = document.getElementById('selectAllCancelledItems');
+    const selectedCancelledCount = document.getElementById('selectedCancelledCount');
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
 
     const API_FETCH_ITEMS = './api/fetch_items.php';
     const API_GET_DETAILS = './api/get_item_details.php';
@@ -139,6 +159,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let locationName = '';
     let currentPage = 1;
     let locationEmployees = null;
+    const selectedCancelledItems = new Map();
+    const CANCELLED_STATUS = 'ยกเลิก';
     const EXCLUDED_CUSTOMER_KEYWORD = 'นำรุ่งเคหะภัณฑ์สำนักงานใหญ่';
 
     const normalizeCustomerName = (value = '') => value
@@ -234,18 +256,35 @@ document.addEventListener('DOMContentLoaded', () => {
         const colorClass = statusColors[selectedStatus] || 'bg-gray-100 text-gray-800';
         locationDisplay.innerHTML = `<div class="inline-flex items-center px-4 py-2 ${colorClass} rounded-lg shadow-sm"><svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg><div><span class="text-sm font-medium">คลัง</span><strong class="block text-xl font-bold">${escapeHtml(locationName)}</strong></div></div>`;
         
-        if (selectedStatus === 'รับแล้ว' || selectedStatus === 'เลื่อน' || selectedStatus === 'รับบางส่วน' || selectedStatus === 'ยกเลิก') {
+        if (selectedStatus === 'รับแล้ว' || selectedStatus === 'เลื่อน' || selectedStatus === 'รับบางส่วน' || selectedStatus === CANCELLED_STATUS) {
             manageHeaderCell.classList.remove('hidden');
         } else {
             manageHeaderCell.classList.add('hidden');
         }
+
+        const isCancelledPage = selectedStatus === CANCELLED_STATUS;
+        bulkDeleteToolbar.classList.toggle('hidden', !isCancelledPage);
+        selectHeaderCell.classList.toggle('hidden', !isCancelledPage);
     };
 
     const actionButtonClass = 'inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50';
     const paginationButtonClass = 'inline-flex h-9 min-w-9 items-center justify-center rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-600 transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-green-400 disabled:cursor-not-allowed disabled:opacity-50';
     const showLoading = () => { tableBody.innerHTML = ''; paginationControls.innerHTML = ''; tableStatus.innerHTML = `<div class="flex justify-center items-center py-10"><div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div><p class="ml-4 text-gray-600">กำลังโหลด...</p></div>`; tableStatus.classList.remove('hidden'); };
-    const showNoData = (message) => { tableBody.innerHTML = ''; paginationControls.innerHTML = ''; tableStatus.innerHTML = `<p class="py-10">${escapeHtml(message)}</p>`; tableStatus.classList.remove('hidden'); };
+    const showNoData = (message) => { selectedCancelledItems.clear(); updateBulkDeleteState(); tableBody.innerHTML = ''; paginationControls.innerHTML = ''; tableStatus.innerHTML = `<p class="py-10">${escapeHtml(message)}</p>`; tableStatus.classList.remove('hidden'); };
     const hideStatus = () => { tableBody.innerHTML = ''; tableStatus.classList.add('hidden'); };
+
+    const getItemKey = ({ docno = '', cdcode = '', unit = '', price = '' }) => [docno, cdcode, unit, price].join('||');
+
+    const updateBulkDeleteState = () => {
+        const selectedCount = selectedCancelledItems.size;
+        selectedCancelledCount.textContent = `เลือกแล้ว ${selectedCount} รายการ`;
+        bulkDeleteBtn.disabled = selectedCount === 0;
+
+        const checkboxes = Array.from(tableBody.querySelectorAll('.cancelled-select-checkbox'));
+        const checkedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
+        selectAllCancelledItems.checked = checkboxes.length > 0 && checkedCount === checkboxes.length;
+        selectAllCancelledItems.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+    };
 
     const fetchLocationEmployees = async () => {
         if (!selectedLocation) {
@@ -417,6 +456,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const searchTerm = searchInput.value.trim();
         const startDate = startDateInput.value;
         const endDate = endDateInput.value;
+        selectedCancelledItems.clear();
+        updateBulkDeleteState();
 
         try {
             const params = new URLSearchParams({
@@ -480,8 +521,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const customerNameHTML = escapeHtml(item.customer_name || 'N/A');
             const cdNameHTML = escapeHtml(item.cd_name || '');
             const unitHTML = escapeHtml(item.unit || '');
+            const priceHTML = escapeHtml(item.UNITPRICE || '0');
+            const isCancelledPage = selectedStatus === CANCELLED_STATUS;
+            const itemKey = getItemKey({
+                docno: item.docno || '',
+                cdcode: item.cd_code || '',
+                unit: item.unit || '',
+                price: item.UNITPRICE || '0'
+            });
             
             let rowHTML = `
+                ${isCancelledPage ? `
+                <td class="px-4 py-4 text-center">
+                    <input type="checkbox" class="cancelled-select-checkbox h-5 w-5 rounded border-red-300 text-red-600 focus:ring-red-500" data-key="${escapeHtml(itemKey)}" data-docno="${docNoHTML}" data-cdcode="${cdCodeHTML}" data-unit="${unitHTML}" data-price="${priceHTML}">
+                </td>` : ''}
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800">${docNoHTML}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(docDate)}</td>
                 <td class="px-6 py-4 text-sm text-gray-700">${customerNameHTML}</td>
@@ -507,16 +560,17 @@ document.addEventListener('DOMContentLoaded', () => {
                             <button type="button" class="update-btn ${actionButtonClass} bg-red-100 text-red-800 hover:bg-red-200 focus:ring-red-300" data-docno="${docNoHTML}" data-cdcode="${cdCodeHTML}" data-status="ยกเลิก">ยกเลิก</button>
                         </div>
                     </td>`;
-            } else if (selectedStatus === 'ยกเลิก') {
+            } else if (selectedStatus === CANCELLED_STATUS) {
                  rowHTML += `
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
-                        <button type="button" class="delete-btn ${actionButtonClass} bg-red-500 text-white hover:bg-red-600 focus:ring-red-300" data-docno="${docNoHTML}" data-cdcode="${cdCodeHTML}">ลบ</button>
+                        <button type="button" class="delete-btn ${actionButtonClass} bg-red-500 text-white hover:bg-red-600 focus:ring-red-300" data-docno="${docNoHTML}" data-cdcode="${cdCodeHTML}" data-unit="${unitHTML}" data-price="${priceHTML}">ลบ</button>
                     </td>`;
             }
 
             row.innerHTML = rowHTML;
             tableBody.appendChild(row);
         });
+        updateBulkDeleteState();
     };
 
     const showItemDetailsModal = async (keys) => {
@@ -720,6 +774,68 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    const deleteItem = async ({ docno, cdcode, unit = '', price = '' }) => {
+        const formData = new FormData();
+        formData.append('docno', docno);
+        formData.append('cd_code', cdcode);
+        if (unit) {
+            formData.append('unit', unit);
+        }
+        if (price) {
+            formData.append('price', price);
+        }
+
+        const response = await fetch(API_DELETE_ITEM, { method: 'POST', body: formData });
+        const resData = await response.json();
+        if (!resData.success) {
+            throw new Error(resData.message || 'ไม่สามารถลบข้อมูลได้');
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        const items = Array.from(selectedCancelledItems.values());
+        if (items.length === 0) {
+            return;
+        }
+
+        const result = await Swal.fire({
+            title: 'ยืนยันการลบรายการที่เลือก?',
+            text: `ต้องการลบรายการสถานะยกเลิก ${items.length} รายการออกจากระบบอย่างถาวร`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'ใช่, ลบรายการที่เลือก',
+            cancelButtonText: 'ยกเลิก'
+        });
+
+        if (!result.isConfirmed) {
+            return;
+        }
+
+        bulkDeleteBtn.disabled = true;
+        try {
+            Swal.fire({
+                title: 'กำลังลบรายการ...',
+                text: `กำลังลบ 0/${items.length} รายการ`,
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            for (let index = 0; index < items.length; index += 1) {
+                await deleteItem(items[index]);
+                Swal.update({ text: `กำลังลบ ${index + 1}/${items.length} รายการ` });
+            }
+
+            selectedCancelledItems.clear();
+            await Swal.fire('ลบแล้ว!', `ลบรายการที่เลือกเรียบร้อยแล้ว ${items.length} รายการ`, 'success');
+            fetchItems(currentPage);
+        } catch (error) {
+            await Swal.fire('เกิดข้อผิดพลาด!', error.message, 'error');
+            updateBulkDeleteState();
+        }
+    };
+
     let searchTimeout;
     searchInput.addEventListener('keyup', () => { 
         clearTimeout(searchTimeout); 
@@ -738,8 +854,46 @@ document.addEventListener('DOMContentLoaded', () => {
         searchInput.value = '';
         fetchItems(1);
     });
+
+    selectAllCancelledItems.addEventListener('change', () => {
+        const checkboxes = Array.from(tableBody.querySelectorAll('.cancelled-select-checkbox'));
+        checkboxes.forEach((checkbox) => {
+            checkbox.checked = selectAllCancelledItems.checked;
+            const item = {
+                docno: checkbox.dataset.docno || '',
+                cdcode: checkbox.dataset.cdcode || '',
+                unit: checkbox.dataset.unit || '',
+                price: checkbox.dataset.price || ''
+            };
+            if (checkbox.checked) {
+                selectedCancelledItems.set(checkbox.dataset.key, item);
+            } else {
+                selectedCancelledItems.delete(checkbox.dataset.key);
+            }
+        });
+        updateBulkDeleteState();
+    });
+
+    bulkDeleteBtn.addEventListener('click', handleBulkDelete);
     
     tableBody.addEventListener('click', (e) => {
+        const checkbox = e.target.closest('.cancelled-select-checkbox');
+        if (checkbox) {
+            const item = {
+                docno: checkbox.dataset.docno || '',
+                cdcode: checkbox.dataset.cdcode || '',
+                unit: checkbox.dataset.unit || '',
+                price: checkbox.dataset.price || ''
+            };
+            if (checkbox.checked) {
+                selectedCancelledItems.set(checkbox.dataset.key, item);
+            } else {
+                selectedCancelledItems.delete(checkbox.dataset.key);
+            }
+            updateBulkDeleteState();
+            return;
+        }
+
         const updateBtn = e.target.closest('.update-btn');
         if (updateBtn) {
             handleUpdateStatus(updateBtn);
