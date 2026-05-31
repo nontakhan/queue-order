@@ -14,10 +14,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>body { font-family: 'Sarabun', sans-serif; }</style>
+    <style>
+        body { font-family: 'Sarabun', sans-serif; }
+        #tableBody tr.bill-row:hover > td { background-color: #fef9c3 !important; }
+    </style>
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-900">
-    <div class="mx-auto max-w-7xl p-4 sm:p-6">
+    <div class="mx-auto max-w-[96rem] p-4 sm:p-6 md:p-8">
         <header class="mb-6 rounded-2xl bg-slate-900 p-5 text-white shadow">
             <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
@@ -41,8 +44,8 @@
                 <div>
                     <label for="statusSelect" class="mb-1 block text-sm font-medium text-slate-700">สถานะ</label>
                     <select id="statusSelect" class="w-full rounded-xl border border-slate-200 px-4 py-2.5 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100">
+                        <option value="all" selected>ทุกสถานะ</option>
                         <option value="pending">รอตรวจรับ/รับบางส่วน</option>
-                        <option value="all">ทุกสถานะ</option>
                         <option value="รับแล้ว">รับแล้ว</option>
                         <option value="เลื่อน">เลื่อน</option>
                         <option value="ยกเลิก">ยกเลิก</option>
@@ -81,7 +84,6 @@
                             <th class="px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">จำนวน</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">คลัง</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">สถานะ</th>
-                            <th class="px-4 py-3 text-center text-xs font-semibold uppercase text-slate-500">รายละเอียด</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody" class="divide-y divide-slate-200"></tbody>
@@ -126,6 +128,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const closeDetailsModal = document.getElementById('closeDetailsModal');
     const detailsContent = document.getElementById('detailsContent');
     let currentPage = 1;
+    let isAutoRefreshing = false;
     const selectedItems = new Map();
 
     const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -133,6 +136,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }[char]));
 
     const formatDate = (value) => value ? new Date(value).toLocaleDateString('th-TH', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '-';
+    const formatDateTime = (value) => value ? `${new Date(value).toLocaleString('th-TH', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })} น.` : '-';
     const formatQty = (value) => Number(value || 0).toLocaleString('th-TH', { maximumFractionDigits: 3 });
 
     const getStatusBadgeClass = (status) => ({
@@ -186,10 +190,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const renderRows = (items) => {
         tableBody.innerHTML = '';
+        const docNoColorMap = new Map();
+        let colorIndex = 0;
+        const groupColors = ['#ffffff', '#dcfce7'];
         items.forEach((item) => {
+            const docNoKey = item.docno || '';
+            if (!docNoColorMap.has(docNoKey)) {
+                colorIndex = 1 - colorIndex;
+                docNoColorMap.set(docNoKey, colorIndex);
+            }
             const itemKey = getItemKey(item);
             const row = document.createElement('tr');
-            row.className = 'cursor-pointer hover:bg-emerald-50';
+            row.className = 'bill-row cursor-pointer transition-colors duration-200';
             row.dataset.docno = item.docno || '';
             row.dataset.cdcode = item.cd_code || '';
             row.dataset.unit = item.unit || '';
@@ -205,8 +217,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="px-4 py-3 text-right text-slate-700">${formatQty(item.qty)} ${escapeHtml(item.unit || '')}</td>
                 <td class="px-4 py-3 text-slate-700"><div>${escapeHtml(item.location_code || '-')}</div><div class="text-xs text-slate-400">${escapeHtml(item.location || '')}</div></td>
                 <td class="px-4 py-3">${buildStatus(item)}</td>
-                <td class="px-4 py-3 text-center"><button type="button" class="details-btn rounded-xl bg-emerald-100 px-3 py-1.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-200">ดู</button></td>
             `;
+            const rowColor = groupColors[docNoColorMap.get(docNoKey)];
+            row.querySelectorAll('td').forEach((cell) => {
+                cell.style.setProperty('background-color', rowColor);
+            });
             tableBody.appendChild(row);
         });
         updateSelectionUI();
@@ -252,12 +267,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         return params.toString();
     };
 
-    const loadBills = async (page = 1) => {
+    const loadBills = async (page = 1, options = {}) => {
+        const isBackgroundRefresh = options.background === true;
         currentPage = page;
-        clearSelection();
-        tableStatus.textContent = 'กำลังโหลดข้อมูล...';
-        tableStatus.classList.remove('hidden');
-        billsTable.classList.add('hidden');
+        if (!isBackgroundRefresh) {
+            clearSelection();
+            tableStatus.textContent = 'กำลังโหลดข้อมูล...';
+            tableStatus.classList.remove('hidden');
+            billsTable.classList.add('hidden');
+        }
         const response = await fetch(`./api/fetch_my_bills.php?${buildQuery(page)}`, { credentials: 'same-origin' });
         const result = await response.json();
         if (!response.ok || !result.success) {
@@ -269,6 +287,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             tableBody.innerHTML = '';
             renderPagination(result.pagination);
             updateSelectionUI();
+            tableStatus.classList.remove('hidden');
+            billsTable.classList.add('hidden');
             return;
         }
         renderRows(result.data);
@@ -343,6 +363,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 { label: 'คลัง', value: `${data.location_code || '-'} ${data.location || ''}` },
                 { label: 'รูปแบบ', value: String(data.SHIPFLAG || data.shipflag || '0') === '1' ? 'แผนกส่ง' : 'ลูกค้ารับเอง' },
                 { label: 'สถานะ', html: buildStatusBadge(data.delivery_status || 'รอตรวจรับ') },
+                { label: 'วันเวลาอัปเดท', value: formatDateTime(data.last_update) },
                 { label: 'เจ้าหน้าที่รับสินค้า', value: data.received_by_employee },
                 { label: 'หมายเหตุการตรวจรับ', value: data.delivery_remark, wide: true }
             ]),
@@ -448,6 +469,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    const startAutoRefresh = () => {
+        window.setInterval(async () => {
+            if (isAutoRefreshing) return;
+            isAutoRefreshing = true;
+            try {
+                await loadBills(currentPage, { background: true });
+            } catch (error) {
+                console.error('Auto refresh failed:', error);
+            } finally {
+                isAutoRefreshing = false;
+            }
+        }, 10000);
+    };
+
     try {
         const meResponse = await fetch('./api/auth_me.php', { credentials: 'same-origin' });
         const meResult = await meResponse.json();
@@ -465,9 +500,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             const day = String(date.getDate()).padStart(2, '0');
             return `${year}-${month}-${day}`;
         };
+        statusSelect.value = 'all';
         startDate.value = toInputDate(twoDaysAgo);
         endDate.value = toInputDate(today);
         await loadBills(currentPage);
+        startAutoRefresh();
     } catch (error) {
         await Swal.fire('ผิดพลาด', error.message, 'error');
     }
