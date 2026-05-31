@@ -6,9 +6,10 @@ error_reporting(0);
 require_once __DIR__ . '/_bootstrap.php';
 
 $user = app_require_login(false);
+$isAdmin = ($user['role'] ?? '') === 'admin';
 $salesLname = trim((string) ($user['sales_lname'] ?? ''));
 
-if ($salesLname === '') {
+if (!$isAdmin && $salesLname === '') {
     app_json_response([
         'success' => false,
         'message' => 'ยังไม่ได้ผูกชื่อพนักงานขายให้ผู้ใช้นี้',
@@ -30,9 +31,15 @@ $totalPages = 0;
 $totalItems = 0;
 
 try {
-    $whereClauses = ['user_lname = ?'];
-    $params = [$salesLname];
-    $types = 's';
+    $whereClauses = [];
+    $params = [];
+    $types = '';
+
+    if (!$isAdmin) {
+        $whereClauses[] = 'user_lname = ?';
+        $params[] = $salesLname;
+        $types .= 's';
+    }
 
     if (!$includeAllStatus && $status !== '') {
         $whereClauses[] = 'delivery_status = ?';
@@ -66,7 +73,7 @@ try {
         $types .= 's';
     }
 
-    $whereSql = 'WHERE ' . implode(' AND ', $whereClauses);
+    $whereSql = count($whereClauses) > 0 ? 'WHERE ' . implode(' AND ', $whereClauses) : '';
 
     $countResult = app_execute($conn, 'SELECT COUNT(*) AS total FROM transfer_data_from_mssql ' . $whereSql, $types, $params);
     $totalItems = (int) $countResult->fetch_assoc()['total'];
@@ -104,7 +111,8 @@ $conn->close();
 
 app_json_response([
     'success' => true,
-    'sales_lname' => $salesLname,
+    'sales_lname' => $isAdmin ? 'ทุกพนักงานขาย' : $salesLname,
+    'is_admin' => $isAdmin,
     'data' => $items,
     'pagination' => [
         'current_page' => $page,

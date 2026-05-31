@@ -10,9 +10,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $user = app_require_login(false);
+$isAdmin = ($user['role'] ?? '') === 'admin';
 $salesLname = trim((string) ($user['sales_lname'] ?? ''));
 
-if ($salesLname === '') {
+if (!$isAdmin && $salesLname === '') {
     app_json_response(['success' => false, 'message' => 'ยังไม่ได้ผูกชื่อพนักงานขายให้ผู้ใช้นี้'], 422);
 }
 
@@ -46,13 +47,19 @@ try {
         $cdCode = trim((string) ($item['cd_code'] ?? ''));
         $unit = trim((string) ($item['unit'] ?? ''));
         $price = trim((string) ($item['price'] ?? ''));
+        $ownerSalesLname = trim((string) ($item['user_lname'] ?? ''));
 
         if ($docno === '' || $cdCode === '' || $unit === '' || $price === '' || !is_numeric($price)) {
             throw new Exception('ข้อมูลรายการไม่ครบถ้วน');
         }
 
+        if ($isAdmin && $ownerSalesLname === '') {
+            throw new Exception('Missing owner parameter');
+        }
+
         $priceValue = (float) $price;
-        $stmt->bind_param('ssssd', $salesLname, $docno, $cdCode, $unit, $priceValue);
+        $targetSalesLname = $isAdmin ? $ownerSalesLname : $salesLname;
+        $stmt->bind_param('ssssd', $targetSalesLname, $docno, $cdCode, $unit, $priceValue);
         if (!$stmt->execute()) {
             throw new Exception($stmt->error);
         }

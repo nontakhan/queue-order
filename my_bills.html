@@ -154,12 +154,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         return `<div>${buildStatusBadge(status)}</div>${detail ? `<div class="mt-1 text-xs text-slate-500">${escapeHtml(detail)}</div>` : ''}`;
     };
 
-    const getItemKey = (item) => JSON.stringify([item.docno || '', item.cd_code || '', item.unit || '', String(item.UNITPRICE || '0')]);
+    const getItemKey = (item) => JSON.stringify([item.docno || '', item.cd_code || '', item.unit || '', String(item.UNITPRICE || '0'), item.user_lname || '']);
     const getRowItem = (row) => ({
         docno: row?.dataset.docno || '',
         cd_code: row?.dataset.cdcode || '',
         unit: row?.dataset.unit || '',
         price: row?.dataset.price || '0',
+        user_lname: row?.dataset.userlname || '',
         shipflag: row?.dataset.shipflag || '0'
     });
     const getVisibleCheckboxes = () => Array.from(tableBody.querySelectorAll('.item-checkbox'));
@@ -193,6 +194,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             row.dataset.cdcode = item.cd_code || '';
             row.dataset.unit = item.unit || '';
             row.dataset.price = item.UNITPRICE || '0';
+            row.dataset.userlname = item.user_lname || '';
             row.dataset.shipflag = item.shipflag || '0';
             row.innerHTML = `
                 <td class="px-4 py-3 text-center"><input type="checkbox" class="item-checkbox h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500" ${selectedItems.has(itemKey) ? 'checked' : ''} aria-label="เลือก ${escapeHtml(item.docno)}"></td>
@@ -312,7 +314,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             docno: item.docno,
             cd_code: item.cd_code,
             unit: item.unit,
-            price: item.price
+            price: item.price,
+            user_lname: item.user_lname
         });
         const response = await fetch(`./api/get_my_bill_details.php?${params.toString()}`, { credentials: 'same-origin' });
         const result = await response.json();
@@ -390,7 +393,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         getVisibleCheckboxes().forEach((checkbox) => {
             checkbox.checked = selectAllVisibleItems.checked;
             const item = getRowItem(checkbox.closest('tr'));
-            const key = JSON.stringify([item.docno, item.cd_code, item.unit, item.price]);
+            const key = JSON.stringify([item.docno, item.cd_code, item.unit, item.price, item.user_lname]);
             if (checkbox.checked) {
                 selectedItems.set(key, item);
             } else {
@@ -413,7 +416,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const checkbox = event.target.closest('.item-checkbox');
         if (!checkbox) return;
         const item = getRowItem(checkbox.closest('tr'));
-        const key = JSON.stringify([item.docno, item.cd_code, item.unit, item.price]);
+        const key = JSON.stringify([item.docno, item.cd_code, item.unit, item.price, item.user_lname]);
         if (checkbox.checked) {
             selectedItems.set(key, item);
         } else {
@@ -453,6 +456,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         userSummary.textContent = `${meResult.user.full_name || meResult.user.username}`;
+        const today = new Date();
+        const twoDaysAgo = new Date(today);
+        twoDaysAgo.setDate(today.getDate() - 2);
+        const toInputDate = (date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+        startDate.value = toInputDate(twoDaysAgo);
+        endDate.value = toInputDate(today);
         await loadBills(currentPage);
     } catch (error) {
         await Swal.fire('ผิดพลาด', error.message, 'error');

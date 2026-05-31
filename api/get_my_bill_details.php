@@ -6,9 +6,10 @@ error_reporting(0);
 require_once __DIR__ . '/_bootstrap.php';
 
 $user = app_require_login(false);
+$isAdmin = ($user['role'] ?? '') === 'admin';
 $salesLname = trim((string) ($user['sales_lname'] ?? ''));
 
-if ($salesLname === '') {
+if (!$isAdmin && $salesLname === '') {
     app_json_response(['success' => false, 'message' => 'ยังไม่ได้ผูกชื่อพนักงานขายให้ผู้ใช้นี้'], 422);
 }
 
@@ -16,9 +17,14 @@ $docno = isset($_GET['docno']) ? trim((string) $_GET['docno']) : '';
 $cdCode = isset($_GET['cd_code']) ? trim((string) $_GET['cd_code']) : '';
 $unit = isset($_GET['unit']) ? trim((string) $_GET['unit']) : '';
 $price = isset($_GET['price']) ? trim((string) $_GET['price']) : '';
+$ownerSalesLname = isset($_GET['user_lname']) ? trim((string) $_GET['user_lname']) : '';
 
 if ($docno === '' || $cdCode === '' || $unit === '' || $price === '' || !is_numeric($price)) {
     app_json_response(['success' => false, 'message' => 'Missing required parameters'], 422);
+}
+
+if ($isAdmin && $ownerSalesLname === '') {
+    app_json_response(['success' => false, 'message' => 'Missing owner parameter'], 422);
 }
 
 $conn = app_db();
@@ -26,6 +32,7 @@ $stmt = null;
 $historyStmt = null;
 
 try {
+    $targetSalesLname = $isAdmin ? $ownerSalesLname : $salesLname;
     $sql = 'SELECT *
             FROM transfer_data_from_mssql
             WHERE user_lname = ? AND docno = ? AND cd_code = ? AND Lname_unit = ? AND UNITPRICE = ?
@@ -36,7 +43,7 @@ try {
     }
 
     $priceValue = (float) $price;
-    $stmt->bind_param('ssssd', $salesLname, $docno, $cdCode, $unit, $priceValue);
+    $stmt->bind_param('ssssd', $targetSalesLname, $docno, $cdCode, $unit, $priceValue);
     $stmt->execute();
     $result = $stmt->get_result();
     $item = $result->fetch_assoc();
