@@ -30,6 +30,12 @@
         header h1 { color: #0f172a; }
         header p { color: #475569; }
         #locationDisplay span { color: #64748b; }
+        .header-action-btn {
+            min-height: 2.5rem;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-900">
@@ -69,49 +75,58 @@
 
 
     <div class="relative mx-auto max-w-[96rem] p-4 sm:p-6 md:p-8">
-        <!-- Header Updated -->
+        <!-- Header -->
         <header class="mb-6">
-            <div class="rounded-[2rem] border border-slate-200/80 bg-white/85 p-6 shadow-xl shadow-slate-200/70 ring-1 ring-white/60 backdrop-blur md:p-8">
-            <div class="flex flex-wrap justify-between items-center gap-4">
-                <!-- Left Side: Logo, Title, and Location -->
-                <div class="flex items-center space-x-4">
-                    <svg class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-                    <div>
-                        <h1 class="text-3xl md:text-4xl font-bold text-gray-800">คิวออเดอร์</h1>
-                        <p class="text-lg text-gray-600 -mt-1">รายการสินค้ารอตรวจรับ</p>
+            <div class="rounded-[1.75rem] border border-slate-200/80 bg-white/90 p-5 shadow-xl shadow-slate-200/70 ring-1 ring-white/70 backdrop-blur md:p-6">
+            <div class="grid gap-5 xl:grid-cols-[minmax(17rem,0.55fr)_minmax(0,2.8fr)] xl:items-start">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
+                    <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-green-600 ring-1 ring-emerald-100">
+                        <svg class="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
                     </div>
-                    <div id="locationDisplay" class="ml-6">
-                        <span class="text-gray-500">กรุณาเลือกคลังเพื่อเริ่ม</span>
+                    <div class="min-w-0">
+                        <p class="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-700">Queue Order</p>
+                        <h1 class="mt-1 text-3xl font-bold leading-tight text-slate-900 md:text-4xl">คิวออเดอร์</h1>
+                        <p class="text-base text-slate-500">รายการสินค้ารอตรวจรับ</p>
                     </div>
                 </div>
-                <!-- Right Side: Controls -->
-                <div class="flex items-center gap-4">
-                    <div id="historyButtons" class="flex flex-wrap gap-3 hidden">
-                        <a id="receivedLink" href="#" class="flex items-center bg-green-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-green-600 transition">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            ดูรายการที่รับแล้ว
-                        </a>
-                        <a id="postponedLink" href="#" class="flex items-center bg-yellow-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-yellow-600 transition">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            ดูรายการที่เลื่อน
-                        </a>
-                        <a id="partialReceivedLink" href="#" class="flex items-center bg-orange-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-orange-600 transition">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 11V7m0 4h4m-4 0l5.657 5.657M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                            ดูรายการรับบางส่วน
-                        </a>
-                        <a id="cancelledLink" href="#" class="flex items-center bg-red-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-red-600 transition">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            ดูรายการที่ยกเลิก
-                        </a>
+                <div class="grid gap-4 lg:grid-cols-[minmax(11rem,0.42fr)_minmax(0,1.9fr)] lg:items-start">
+                    <div id="locationDisplay" class="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-3">
+                        <span class="flex min-h-12 items-center text-sm font-medium text-slate-500">กรุณาเลือกคลังเพื่อเริ่ม</span>
                     </div>
-                    <a href="reports.html" id="reportsLink" class="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-200 transition flex items-center">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6m4 6V7m4 10V4M5 20h14"></path></svg>
-                        รายงาน
-                    </a>
-                    <button id="soundToggleBtn" class="px-4 py-2 rounded-lg text-sm font-semibold transition hidden" title="เปิด/ปิดเสียงแจ้งเตือน"></button>
-                    <a href="admin.html#sound-settings" id="soundAdminLink" class="bg-purple-100 text-purple-800 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-purple-200 transition hidden flex items-center"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>ตั้งค่าเสียง</a>
-                    <button id="changeDbProfileBtn" class="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-slate-800 transition">ชุดข้อมูล</button>
-                    <button id="changeLocationBtn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-300 transition hidden">เปลี่ยนคลัง</button>
+                    <!-- Controls are reorganized into sections by organizeHeaderControls(). -->
+                    <div class="flex min-w-0 flex-col gap-3">
+                        <div id="historyButtons" class="hidden flex-wrap gap-2">
+                            <a id="receivedLink" href="#" class="header-action-btn inline-flex rounded-xl bg-green-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-green-600">
+                                <svg class="mr-2 h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                ดูรายการที่รับแล้ว
+                            </a>
+                            <a id="postponedLink" href="#" class="header-action-btn inline-flex rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600">
+                                <svg class="mr-2 h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                ดูรายการที่เลื่อน
+                            </a>
+                            <a id="partialReceivedLink" href="#" class="header-action-btn inline-flex rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-600">
+                                <svg class="mr-2 h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 11V7m0 4h4m-4 0l5.657 5.657M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                                ดูรายการรับบางส่วน
+                            </a>
+                            <a id="cancelledLink" href="#" class="header-action-btn inline-flex rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-600">
+                                <svg class="mr-2 h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                ดูรายการที่ยกเลิก
+                            </a>
+                        </div>
+                        <div id="currentUserPanel" class="hidden items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+                            <span class="text-emerald-700">ผู้ใช้:</span>
+                            <span id="currentUserName" class="font-semibold"></span>
+                        </div>
+                        <button id="logoutBtn" type="button" class="hidden rounded-xl bg-red-100 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-200">ออกจากระบบ</button>
+                        <a href="reports.html" id="reportsLink" class="header-action-btn inline-flex rounded-xl bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-800 transition hover:bg-blue-200">
+                            <svg class="mr-2 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6m4 6V7m4 10V4M5 20h14"></path></svg>
+                            รายงาน
+                        </a>
+                        <button id="soundToggleBtn" class="hidden rounded-xl px-4 py-2 text-sm font-semibold transition" title="เปิด/ปิดเสียงแจ้งเตือน"></button>
+                        <a href="admin.html#sound-settings" id="soundAdminLink" class="header-action-btn hidden rounded-xl bg-purple-100 px-4 py-2 text-sm font-semibold text-purple-800 transition hover:bg-purple-200"><svg class="mr-2 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>ตั้งค่าเสียง</a>
+                        <button id="changeDbProfileBtn" class="header-action-btn inline-flex rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800">ชุดข้อมูล</button>
+                        <button id="changeLocationBtn" class="header-action-btn hidden rounded-xl bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-300">เปลี่ยนคลัง</button>
+                    </div>
                 </div>
             </div></div>
         </header>
@@ -217,6 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_GET_SOUNDS = './api/get_sounds.php';
     const API_GET_LOCATION_EMPLOYEES = './api/get_location_employees.php';
     const API_AUTH_ME = './api/auth_me.php';
+    const API_AUTH_LOGOUT = './api/auth_logout.php';
     const API_DB_PROFILES = './api/db_profiles.php';
     const API_SELECT_DB_PROFILE = './api/select_db_profile.php';
     
@@ -259,37 +275,56 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         controlsRoot.dataset.grouped = '1';
-        controlsRoot.className = 'flex w-full flex-col gap-3 lg:w-auto lg:items-end';
+        controlsRoot.className = 'contents';
 
         const historyGroup = document.createElement('div');
-        historyGroup.className = 'flex flex-col gap-2 rounded-[1.4rem] border border-slate-200 bg-slate-50/90 p-3 shadow-md shadow-slate-200/70 backdrop-blur';
+        historyGroup.className = 'flex min-w-0 flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50/90 p-3 shadow-sm';
         const historyTitle = document.createElement('div');
-        historyTitle.className = 'px-1 text-xs font-semibold uppercase tracking-[0.3em] text-slate-500';
+        historyTitle.className = 'px-1 text-xs font-semibold tracking-[0.24em] text-slate-500';
         historyTitle.textContent = 'ประวัติสถานะ';
 
         const utilityGroup = document.createElement('div');
-        utilityGroup.className = 'flex flex-col gap-2 rounded-[1.4rem] border border-slate-200 bg-slate-50/90 p-3 shadow-md shadow-slate-200/70 backdrop-blur';
-        const utilityTitle = document.createElement('div');
-        utilityTitle.className = 'px-1 text-xs font-semibold uppercase tracking-[0.3em] text-slate-500';
-        utilityTitle.textContent = 'เครื่องมือ';
+        utilityGroup.className = 'flex w-full min-w-0 flex-wrap items-stretch gap-2 rounded-2xl border border-slate-200 bg-slate-50/90 p-2.5 shadow-sm lg:col-span-2 xl:flex-nowrap';
 
         const historyRow = document.createElement('div');
-        historyRow.className = 'flex flex-nowrap gap-3 overflow-x-auto pb-1';
-        const utilityRow = document.createElement('div');
-        utilityRow.className = 'flex flex-wrap gap-3';
+        historyRow.className = 'flex min-w-0 flex-wrap gap-2';
+        const createUtilitySection = (title, id) => {
+            const section = document.createElement('div');
+            section.className = 'flex min-w-0 flex-1 basis-0 items-center gap-2 rounded-xl border border-slate-200 bg-white/85 p-2 shadow-sm';
+            const label = document.createElement('div');
+            label.className = 'flex shrink-0 items-center gap-1.5 border-r border-slate-200 pr-2 text-[0.68rem] font-bold tracking-[0.12em] text-slate-600';
+            const labelDot = document.createElement('span');
+            labelDot.className = 'h-1.5 w-1.5 rounded-full bg-slate-400';
+            const labelText = document.createElement('span');
+            label.textContent = title;
+            label.textContent = '';
+            labelText.textContent = title;
+            label.appendChild(labelDot);
+            label.appendChild(labelText);
+            const row = document.createElement('div');
+            row.id = id;
+            row.className = 'flex min-w-0 flex-1 flex-wrap items-center gap-1.5';
+            section.appendChild(label);
+            section.appendChild(row);
+            return { section, row };
+        };
+        const accountSection = createUtilitySection('บัญชี', 'headerAccountTools');
+        const workSection = createUtilitySection('เมนูงาน', 'headerWorkTools');
+        const systemSection = createUtilitySection('ระบบ', 'headerSystemTools');
 
         const historyButtonsEl = document.getElementById('historyButtons');
-        historyButtonsEl.className = 'hidden flex flex-nowrap gap-3';
+        historyButtonsEl.className = 'hidden flex flex-wrap gap-2';
 
         controlsRoot.insertBefore(historyGroup, historyButtonsEl);
         historyGroup.appendChild(historyTitle);
         historyGroup.appendChild(historyRow);
         historyRow.appendChild(historyButtonsEl);
 
-        ['reportsLink', 'adminEntryLink', 'soundToggleBtn', 'changeDbProfileBtn', 'changeLocationBtn'].forEach((id) => {
+        const appendTool = (id, row) => {
             const element = document.getElementById(id);
             if (!element) return;
 
+            element.classList.add('header-action-btn');
             if (id === 'soundToggleBtn') {
                 element.classList.add('rounded-xl');
             }
@@ -304,12 +339,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 element.classList.add('rounded-xl');
             }
 
-            utilityRow.appendChild(element);
-        });
+            row.appendChild(element);
+        };
 
-        utilityGroup.appendChild(utilityTitle);
-        utilityGroup.appendChild(utilityRow);
+        ['currentUserPanel', 'logoutBtn'].forEach((id) => appendTool(id, accountSection.row));
+        ['reportsLink', 'adminEntryLink', 'myBillsEntryLink'].forEach((id) => appendTool(id, workSection.row));
+        ['soundToggleBtn', 'changeDbProfileBtn', 'changeLocationBtn'].forEach((id) => appendTool(id, systemSection.row));
+
+        utilityGroup.appendChild(accountSection.section);
+        utilityGroup.appendChild(workSection.section);
+        utilityGroup.appendChild(systemSection.section);
         controlsRoot.appendChild(utilityGroup);
+    };
+
+    const handleLogout = async () => {
+        await fetch(API_AUTH_LOGOUT, { method: 'POST', credentials: 'same-origin' });
+        window.location.href = 'login.html';
     };
 
     const loadCurrentUser = async () => {
@@ -324,28 +369,63 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!document.getElementById('adminEntryLink')) {
             const adminLink = document.createElement('a');
             adminLink.id = 'adminEntryLink';
-            adminLink.className = 'rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-200';
+            adminLink.className = 'header-action-btn inline-flex rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-200';
             const reportsLink = document.getElementById('reportsLink');
             reportsLink.insertAdjacentElement('afterend', adminLink);
         }
 
+        if (!document.getElementById('myBillsEntryLink')) {
+            const myBillsLink = document.createElement('a');
+            myBillsLink.id = 'myBillsEntryLink';
+            myBillsLink.href = 'my_bills.html';
+            myBillsLink.textContent = 'บิลของฉัน';
+            myBillsLink.className = 'header-action-btn inline-flex rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-200';
+            const adminEntryLink = document.getElementById('adminEntryLink');
+            adminEntryLink.insertAdjacentElement('afterend', myBillsLink);
+        }
+
         const adminEntryLink = document.getElementById('adminEntryLink');
+        const myBillsEntryLink = document.getElementById('myBillsEntryLink');
+        const currentUserPanel = document.getElementById('currentUserPanel');
+        const currentUserName = document.getElementById('currentUserName');
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        if (currentUser) {
+            const displayName = currentUser.full_name || currentUser.username || 'ผู้ใช้';
+            currentUserName.textContent = displayName;
+            currentUserPanel.classList.remove('hidden');
+            currentUserPanel.classList.add('flex');
+            logoutBtn.classList.remove('hidden');
+        } else {
+            currentUserName.textContent = '';
+            currentUserPanel.classList.add('hidden');
+            currentUserPanel.classList.remove('flex');
+            logoutBtn.classList.add('hidden');
+        }
+
         if (currentUser && currentUser.role === 'admin') {
             adminEntryLink.href = 'admin.html';
             adminEntryLink.textContent = 'หน้าจัดการ';
+            myBillsEntryLink.classList.remove('hidden');
         } else if (currentUser) {
             adminEntryLink.href = 'my_bills.html';
             adminEntryLink.textContent = 'บิลของฉัน';
+            myBillsEntryLink.classList.add('hidden');
         } else {
             adminEntryLink.href = 'login.html';
             adminEntryLink.textContent = 'เข้าสู่ระบบ';
+            myBillsEntryLink.classList.add('hidden');
         }
 
-        adminEntryLink.className = 'rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-200';
+        adminEntryLink.className = 'header-action-btn inline-flex rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-200';
+        myBillsEntryLink.className = `header-action-btn inline-flex rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-200 ${currentUser && currentUser.role === 'admin' ? '' : 'hidden'}`;
 
-        const utilityRow = document.querySelector('[data-grouped="1"] > div:last-child > div:last-child');
-        if (utilityRow && adminEntryLink.parentElement !== utilityRow) {
-            utilityRow.insertBefore(adminEntryLink, document.getElementById('soundToggleBtn'));
+        const workToolsRow = document.getElementById('headerWorkTools');
+        if (workToolsRow && adminEntryLink.parentElement !== workToolsRow) {
+            workToolsRow.appendChild(adminEntryLink);
+        }
+        if (workToolsRow && myBillsEntryLink.parentElement !== workToolsRow) {
+            workToolsRow.appendChild(myBillsEntryLink);
         }
     };
 
@@ -797,7 +877,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mainContent.classList.remove('hidden');
         changeLocationBtn.classList.remove('hidden');
         
-        locationDisplay.innerHTML = `<div class="inline-flex items-center px-4 py-2 bg-green-100 text-green-800 rounded-lg shadow-sm"><svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg><div><span class="text-sm font-medium">คลังที่เลือก</span><strong class="block text-xl font-bold">${escapeHtml(selectedLocationInfo.location_code)}: ${escapeHtml(selectedLocationInfo.location)}</strong></div></div>`;
+        locationDisplay.innerHTML = `<div class="flex items-center gap-3 rounded-xl bg-emerald-50 px-3 py-2.5 text-emerald-900 ring-1 ring-emerald-100"><div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-600 shadow-sm"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg></div><div class="min-w-0"><span class="text-[0.7rem] font-semibold tracking-[0.16em] text-emerald-700">คลังที่เลือก</span><strong class="block break-words text-base font-bold leading-snug">${escapeHtml(selectedLocationInfo.location_code)}: ${escapeHtml(selectedLocationInfo.location)}</strong></div></div>`;
         
         document.getElementById('receivedLink').href = `history.html?location=${encodeURIComponent(selectedLocationInfo.location_code)}&status=${encodeURIComponent('รับแล้ว')}&location_name=${encodeURIComponent(selectedLocationInfo.location)}`;
         document.getElementById('postponedLink').href = `history.html?location=${encodeURIComponent(selectedLocationInfo.location_code)}&status=${encodeURIComponent('เลื่อน')}&location_name=${encodeURIComponent(selectedLocationInfo.location)}`;
@@ -1555,7 +1635,7 @@ document.addEventListener('DOMContentLoaded', () => {
             mainContent.classList.add('hidden');
             changeLocationBtn.classList.add('hidden');
             historyButtons.classList.add('hidden');
-            locationDisplay.innerHTML = `<span class="text-gray-500">กรุณาเลือกคลังเพื่อเริ่ม</span>`;
+            locationDisplay.innerHTML = `<span class="flex min-h-12 items-center text-sm font-medium text-slate-500">กรุณาเลือกคลังเพื่อเริ่ม</span>`;
             fetchLocations();
         }
     };
@@ -1645,6 +1725,8 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('soundEnabled', soundEnabled);
         updateSoundToggleUI();
     });
+
+    document.getElementById('logoutBtn').addEventListener('click', handleLogout);
 
     changeLocationBtn.addEventListener('click', () => {
         clearSelectedLocation();
