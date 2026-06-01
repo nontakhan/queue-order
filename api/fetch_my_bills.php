@@ -90,7 +90,7 @@ try {
         $dataSql = "SELECT docno, docdate, custname AS customer_name, user_lname, cd_code,
                        cd_name, qty, Lname_unit AS unit, REMARK, UNITPRICE, NETAMOUNT,
                        branch, shipflag, location_code, location,
-                       delivery_status, delivery_remark, received_by_employee, last_update,
+                       delivery_status, delivery_remark, received_by_employee, last_update, create_at,
                        COALESCE(received_qty_total, 0) AS received_qty_total,
                        COALESCE(received_count, 0) AS received_count
                     FROM transfer_data_from_mssql {$whereSql}

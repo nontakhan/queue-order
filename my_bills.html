@@ -363,6 +363,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 { label: 'คลัง', value: `${data.location_code || '-'} ${data.location || ''}` },
                 { label: 'รูปแบบ', value: String(data.SHIPFLAG || data.shipflag || '0') === '1' ? 'แผนกส่ง' : 'ลูกค้ารับเอง' },
                 { label: 'สถานะ', html: buildStatusBadge(data.delivery_status || 'รอตรวจรับ') },
+                { label: 'วันที่เพิ่มข้อมูล', value: formatDateTime(data.create_at) },
                 { label: 'วันเวลาอัปเดท', value: formatDateTime(data.last_update) },
                 { label: 'เจ้าหน้าที่รับสินค้า', value: data.received_by_employee },
                 { label: 'หมายเหตุการตรวจรับ', value: data.delivery_remark, wide: true }
