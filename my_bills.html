@@ -36,7 +36,7 @@
         </header>
 
         <section class="mb-4 rounded-2xl bg-white p-4 shadow-sm">
-            <form id="filterForm" class="grid gap-3 md:grid-cols-[1.4fr,1fr,1fr,1fr,auto] md:items-end">
+            <form id="filterForm" class="grid gap-3 md:grid-cols-[1.4fr,1fr,1fr,1fr,1fr,auto] md:items-end">
                 <div>
                     <label for="searchInput" class="mb-1 block text-sm font-medium text-slate-700">ค้นหา</label>
                     <input id="searchInput" type="search" class="w-full rounded-xl border border-slate-200 px-4 py-2.5 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" placeholder="เลขบิล ลูกค้า หรือสินค้า">
@@ -49,6 +49,12 @@
                         <option value="รับแล้ว">รับแล้ว</option>
                         <option value="เลื่อน">เลื่อน</option>
                         <option value="ยกเลิก">ยกเลิก</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="warehouseSelect" class="mb-1 block text-sm font-medium text-slate-700">คลัง</label>
+                    <select id="warehouseSelect" class="w-full rounded-xl border border-slate-200 px-4 py-2.5 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100">
+                        <option value="">ทุกคลัง</option>
                     </select>
                 </div>
                 <div>
@@ -113,6 +119,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const filterForm = document.getElementById('filterForm');
     const searchInput = document.getElementById('searchInput');
     const statusSelect = document.getElementById('statusSelect');
+    const warehouseSelect = document.getElementById('warehouseSelect');
     const startDate = document.getElementById('startDate');
     const endDate = document.getElementById('endDate');
     const tableStatus = document.getElementById('tableStatus');
@@ -257,6 +264,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const buildQuery = (page) => {
         const params = new URLSearchParams({ page: String(page), limit: '20' });
         if (searchInput.value.trim()) params.set('search', searchInput.value.trim());
+        if (warehouseSelect.value) params.set('location_code', warehouseSelect.value);
         if (startDate.value) params.set('startDate', startDate.value);
         if (endDate.value) params.set('endDate', endDate.value);
         if (statusSelect.value === 'all') {
@@ -265,6 +273,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             params.set('status', statusSelect.value);
         }
         return params.toString();
+    };
+
+    const loadWarehouses = async () => {
+        const response = await fetch('./api/get_locations.php', { credentials: 'same-origin' });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || 'โหลดรายการคลังไม่สำเร็จ');
+        }
+        const locations = Array.isArray(result.data) ? result.data : [];
+        warehouseSelect.innerHTML = '<option value="">ทุกคลัง</option>';
+        locations.forEach((location) => {
+            const option = document.createElement('option');
+            option.value = location.location_code || '';
+            option.textContent = `${location.location_code || ''}${location.location ? ` - ${location.location}` : ''}`;
+            warehouseSelect.appendChild(option);
+        });
     };
 
     const loadBills = async (page = 1, options = {}) => {
@@ -504,6 +528,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         statusSelect.value = 'all';
         startDate.value = toInputDate(twoDaysAgo);
         endDate.value = toInputDate(today);
+        await loadWarehouses();
         await loadBills(currentPage);
         startAutoRefresh();
     } catch (error) {

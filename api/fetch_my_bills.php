@@ -25,6 +25,7 @@ $status = isset($_GET['status']) ? trim($_GET['status']) : '';
 $includeAllStatus = isset($_GET['include_all_status']) && $_GET['include_all_status'] === '1';
 $startDate = isset($_GET['startDate']) ? trim($_GET['startDate']) : '';
 $endDate = isset($_GET['endDate']) ? trim($_GET['endDate']) : '';
+$locationCode = isset($_GET['location_code']) ? trim($_GET['location_code']) : '';
 
 $items = [];
 $totalPages = 0;
@@ -56,6 +57,12 @@ try {
         $params[] = $searchPattern;
         $params[] = $searchPattern;
         $types .= 'sss';
+    }
+
+    if ($locationCode !== '') {
+        $whereClauses[] = 'location_code = ?';
+        $params[] = $locationCode;
+        $types .= 's';
     }
 
     if ($startDate !== '' && $endDate !== '') {

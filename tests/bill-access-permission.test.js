@@ -56,6 +56,16 @@ const checks = [
         ok: adminHtml.includes("result.user.role !== 'admin'"),
     },
     {
+        name: 'My Bills UI exposes warehouse filter and sends location_code',
+        ok: read('my_bills.html').includes('id="warehouseSelect"')
+            && read('my_bills.html').includes("params.set('location_code', warehouseSelect.value)"),
+    },
+    {
+        name: 'My Bills API filters by location_code',
+        ok: fetchMyBills.includes("$locationCode = isset($_GET['location_code'])")
+            && fetchMyBills.includes('location_code = ?'),
+    },
+    {
         name: 'index and login route all-bill users to My Bills, not admin',
         ok: indexHtml.includes('can_view_all_bills')
             && loginHtml.includes("result.user && result.user.role === 'admin' ? 'admin.html' : 'my_bills.html'"),
