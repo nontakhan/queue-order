@@ -56,6 +56,7 @@ function parse_optional_price(?string $value): ?float
 function handle_receive_status_update(
     mysqli $conn,
     string $docno,
+    string $subId,
     string $cdCode,
     string $locationCode,
     string $unit,
@@ -70,6 +71,9 @@ function handle_receive_status_update(
         $selectSql = 'SELECT qty, COALESCE(received_qty_total, 0) AS received_qty_total
             FROM transfer_data_from_mssql
             WHERE docno = ? AND cd_code = ? AND location_code = ?';
+        if ($subId !== '') {
+            $selectSql .= ' AND sub_id = ?';
+        }
         if ($hasFullIdentity) {
             $selectSql .= ' AND Lname_unit = ? AND UNITPRICE = ?';
         }
@@ -80,7 +84,11 @@ function handle_receive_status_update(
             throw new Exception('Failed to prepare statement: ' . $conn->error);
         }
 
-        if ($hasFullIdentity) {
+        if ($subId !== '' && $hasFullIdentity) {
+            $stmt->bind_param('sssssd', $docno, $cdCode, $locationCode, $subId, $unit, $unitPrice);
+        } elseif ($subId !== '') {
+            $stmt->bind_param('ssss', $docno, $cdCode, $locationCode, $subId);
+        } elseif ($hasFullIdentity) {
             $stmt->bind_param('ssssd', $docno, $cdCode, $locationCode, $unit, $unitPrice);
         } else {
             $stmt->bind_param('sss', $docno, $cdCode, $locationCode);
@@ -142,6 +150,9 @@ function handle_receive_status_update(
                 received_qty_total = ?,
                 received_count = received_count + 1
             WHERE docno = ? AND cd_code = ? AND location_code = ?';
+        if ($subId !== '') {
+            $updateSql .= ' AND sub_id = ?';
+        }
         if ($hasFullIdentity) {
             $updateSql .= ' AND Lname_unit = ? AND UNITPRICE = ?';
         }
@@ -151,7 +162,11 @@ function handle_receive_status_update(
             throw new Exception('Failed to prepare statement: ' . $conn->error);
         }
 
-        if ($hasFullIdentity) {
+        if ($subId !== '' && $hasFullIdentity) {
+            $stmt->bind_param('ssdsssssd', $newStatus, $receivedByEmployee, $newReceivedQty, $docno, $cdCode, $locationCode, $subId, $unit, $unitPrice);
+        } elseif ($subId !== '') {
+            $stmt->bind_param('ssdssss', $newStatus, $receivedByEmployee, $newReceivedQty, $docno, $cdCode, $locationCode, $subId);
+        } elseif ($hasFullIdentity) {
             $stmt->bind_param('ssdssssd', $newStatus, $receivedByEmployee, $newReceivedQty, $docno, $cdCode, $locationCode, $unit, $unitPrice);
         } else {
             $stmt->bind_param('ssdsss', $newStatus, $receivedByEmployee, $newReceivedQty, $docno, $cdCode, $locationCode);
@@ -175,6 +190,7 @@ try {
     }
 
     $docno = $_POST['docno'];
+    $subId = isset($_POST['sub_id']) ? trim((string)$_POST['sub_id']) : '';
     $cdCode = $_POST['cd_code'];
     $locationCode = trim((string)$_POST['location_code']);
     $newStatus = $_POST['new_status'];
@@ -193,7 +209,7 @@ try {
             throw new Exception('Missing receiving employee.');
         }
 
-        handle_receive_status_update($conn, $docno, $cdCode, $locationCode, $unit, $unitPrice, $receivedByEmployee, $receivedQty);
+        handle_receive_status_update($conn, $docno, $subId, $cdCode, $locationCode, $unit, $unitPrice, $receivedByEmployee, $receivedQty);
         $conn->close();
 
         app_json_response(['success' => true, 'message' => 'Receive status updated successfully.']);
@@ -223,6 +239,12 @@ try {
     $params[] = $cdCode;
     $params[] = $locationCode;
     $types .= 'sss';
+
+    if ($subId !== '') {
+        $whereClauses[] = 'sub_id = ?';
+        $params[] = $subId;
+        $types .= 's';
+    }
 
     if ($unit !== '' && $unitPrice !== null) {
         $whereClauses[] = 'Lname_unit = ?';

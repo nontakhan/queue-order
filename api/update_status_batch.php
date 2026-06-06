@@ -65,6 +65,9 @@ function parse_batch_items(string $itemsJson): array
         $cdCode = isset($item['cd_code']) && is_scalar($item['cd_code'])
             ? trim((string)$item['cd_code'])
             : '';
+        $subId = isset($item['sub_id']) && is_scalar($item['sub_id'])
+            ? trim((string)$item['sub_id'])
+            : '';
         $locationCode = isset($item['location_code']) && is_scalar($item['location_code'])
             ? trim((string)$item['location_code'])
             : '';
@@ -84,6 +87,7 @@ function parse_batch_items(string $itemsJson): array
 
         $normalizedItems[] = [
             'docno' => $docno,
+            'sub_id' => $subId,
             'cd_code' => $cdCode,
             'location_code' => $locationCode,
             'unit' => $unit,
@@ -100,6 +104,7 @@ function execute_batch_received(
     string $receivedByEmployee
 ): void {
     $docno = $item['docno'];
+    $subId = $item['sub_id'];
     $cdCode = $item['cd_code'];
     $locationCode = $item['location_code'];
     $unit = $item['unit'];
@@ -109,6 +114,9 @@ function execute_batch_received(
     $selectSql = 'SELECT qty, COALESCE(received_qty_total, 0) AS received_qty_total
         FROM transfer_data_from_mssql
         WHERE docno = ? AND cd_code = ? AND location_code = ?';
+    if ($subId !== '') {
+        $selectSql .= ' AND sub_id = ?';
+    }
     if ($hasFullIdentity) {
         $selectSql .= ' AND Lname_unit = ? AND UNITPRICE = ?';
     }
@@ -119,7 +127,11 @@ function execute_batch_received(
         throw new Exception('Failed to prepare statement: ' . $conn->error);
     }
 
-    if ($hasFullIdentity) {
+    if ($subId !== '' && $hasFullIdentity) {
+        $stmt->bind_param('sssssd', $docno, $cdCode, $locationCode, $subId, $unit, $unitPrice);
+    } elseif ($subId !== '') {
+        $stmt->bind_param('ssss', $docno, $cdCode, $locationCode, $subId);
+    } elseif ($hasFullIdentity) {
         $stmt->bind_param('ssssd', $docno, $cdCode, $locationCode, $unit, $unitPrice);
     } else {
         $stmt->bind_param('sss', $docno, $cdCode, $locationCode);
@@ -180,6 +192,9 @@ function execute_batch_received(
             received_qty_total = qty,
             received_count = received_count + 1
         WHERE docno = ? AND cd_code = ? AND location_code = ?';
+    if ($subId !== '') {
+        $updateSql .= ' AND sub_id = ?';
+    }
     if ($hasFullIdentity) {
         $updateSql .= ' AND Lname_unit = ? AND UNITPRICE = ?';
     }
@@ -189,7 +204,11 @@ function execute_batch_received(
         throw new Exception('Failed to prepare statement: ' . $conn->error);
     }
 
-    if ($hasFullIdentity) {
+    if ($subId !== '' && $hasFullIdentity) {
+        $stmt->bind_param('sssssssd', $newStatus, $receivedByEmployee, $docno, $cdCode, $locationCode, $subId, $unit, $unitPrice);
+    } elseif ($subId !== '') {
+        $stmt->bind_param('ssssss', $newStatus, $receivedByEmployee, $docno, $cdCode, $locationCode, $subId);
+    } elseif ($hasFullIdentity) {
         $stmt->bind_param('ssssssd', $newStatus, $receivedByEmployee, $docno, $cdCode, $locationCode, $unit, $unitPrice);
     } else {
         $stmt->bind_param('sssss', $newStatus, $receivedByEmployee, $docno, $cdCode, $locationCode);
@@ -214,6 +233,7 @@ function execute_batch_non_received(
     ?string $remark
 ): void {
     $docno = $item['docno'];
+    $subId = $item['sub_id'];
     $cdCode = $item['cd_code'];
     $locationCode = $item['location_code'];
     $unit = $item['unit'];
@@ -227,6 +247,9 @@ function execute_batch_non_received(
             received_qty_total = 0,
             received_count = 0
         WHERE docno = ? AND cd_code = ? AND location_code = ?';
+    if ($subId !== '') {
+        $updateSql .= ' AND sub_id = ?';
+    }
     if ($hasFullIdentity) {
         $updateSql .= ' AND Lname_unit = ? AND UNITPRICE = ?';
     }
@@ -236,7 +259,11 @@ function execute_batch_non_received(
         throw new Exception('Failed to prepare statement: ' . $conn->error);
     }
 
-    if ($hasFullIdentity) {
+    if ($subId !== '' && $hasFullIdentity) {
+        $stmt->bind_param('sssssssd', $newStatus, $remark, $docno, $cdCode, $locationCode, $subId, $unit, $unitPrice);
+    } elseif ($subId !== '') {
+        $stmt->bind_param('ssssss', $newStatus, $remark, $docno, $cdCode, $locationCode, $subId);
+    } elseif ($hasFullIdentity) {
         $stmt->bind_param('ssssssd', $newStatus, $remark, $docno, $cdCode, $locationCode, $unit, $unitPrice);
     } else {
         $stmt->bind_param('sssss', $newStatus, $remark, $docno, $cdCode, $locationCode);

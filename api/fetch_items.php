@@ -107,7 +107,7 @@ try {
         $dataTypes = $types . 'ii';
         $dataParams[] = $limit;
         $dataParams[] = $offset;
-        $dataSql = "SELECT docno, docdate, custname AS customer_name, cd_code,
+        $dataSql = "SELECT sub_id, docno, docdate, custname AS customer_name, cd_code,
                        cd_name, qty, Lname_unit AS unit, REMARK, UNITPRICE, branch, shipflag,
                        location_code, location,
                        delivery_status, delivery_remark, received_by_employee, last_update, create_at,

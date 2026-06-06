@@ -10,6 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $docno = isset($_POST['docno']) ? trim($_POST['docno']) : '';
+$subId = isset($_POST['sub_id']) ? trim((string) $_POST['sub_id']) : '';
 $cdCode = isset($_POST['cd_code']) ? trim($_POST['cd_code']) : '';
 $locationCode = isset($_POST['location_code']) ? trim($_POST['location_code']) : '';
 $unit = isset($_POST['unit']) ? trim($_POST['unit']) : '';
@@ -26,18 +27,28 @@ if ($price !== '' && !is_numeric($price)) {
 $conn = app_db();
 
 try {
-    if ($unit !== '' && $price !== '') {
-        $stmt = $conn->prepare('DELETE FROM transfer_data_from_mssql WHERE docno = ? AND cd_code = ? AND location_code = ? AND Lname_unit = ? AND UNITPRICE = ?');
-    } else {
-        $stmt = $conn->prepare('DELETE FROM transfer_data_from_mssql WHERE docno = ? AND cd_code = ? AND location_code = ?');
+    $whereSql = 'docno = ? AND cd_code = ? AND location_code = ?';
+    if ($subId !== '') {
+        $whereSql .= ' AND sub_id = ?';
     }
+    if ($unit !== '' && $price !== '') {
+        $whereSql .= ' AND Lname_unit = ? AND UNITPRICE = ?';
+    }
+
+    $stmt = $conn->prepare('DELETE FROM transfer_data_from_mssql WHERE ' . $whereSql);
     if ($stmt === false) {
         throw new Exception('Prepare statement failed: ' . $conn->error);
     }
 
     if ($unit !== '' && $price !== '') {
         $priceValue = (float) $price;
-        $stmt->bind_param('ssssd', $docno, $cdCode, $locationCode, $unit, $priceValue);
+        if ($subId !== '') {
+            $stmt->bind_param('sssssd', $docno, $cdCode, $locationCode, $subId, $unit, $priceValue);
+        } else {
+            $stmt->bind_param('ssssd', $docno, $cdCode, $locationCode, $unit, $priceValue);
+        }
+    } elseif ($subId !== '') {
+        $stmt->bind_param('ssss', $docno, $cdCode, $locationCode, $subId);
     } else {
         $stmt->bind_param('sss', $docno, $cdCode, $locationCode);
     }

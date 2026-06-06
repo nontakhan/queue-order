@@ -1040,6 +1040,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const unit = (row?.dataset.unit || '').trim();
         return {
             docno: row?.dataset.docno || '',
+            sub_id: row?.dataset.subId || '',
             cd_code: row?.dataset.cdcode || '',
             location_code: row?.dataset.locationCode || '',
             unit: unit,
@@ -1047,7 +1048,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     };
 
-    const getBatchItemKey = (item) => JSON.stringify([item.docno, item.cd_code, item.location_code, item.unit, item.price]);
+    const getBatchItemKey = (item) => JSON.stringify([item.docno, item.sub_id, item.cd_code, item.location_code, item.unit, item.price]);
 
     const getVisibleBatchCheckboxes = () => Array.from(tableBody.querySelectorAll('.batch-select-checkbox'));
 
@@ -1207,6 +1208,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const row = document.createElement('tr');
             row.className = `${groupColors[colorIndex]} hover:bg-yellow-100 transition-colors duration-200 item-row`;
             row.dataset.docno = item.docno;
+            row.dataset.subId = item.sub_id || '';
             row.dataset.cdcode = item.cd_code;
             row.dataset.locationCode = item.location_code || selectedLocationInfo.location_code || '';
             row.dataset.unit = item.unit || '';
@@ -1272,8 +1274,8 @@ document.addEventListener('DOMContentLoaded', () => {
         detailsContent.innerHTML = '<div class="flex justify-center items-center py-10"><div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div></div>';
         
         try {
-            const { docno, cdcode, locationCode, unit, price, shipflag } = keys;
-            const apiUrl = `${API_GET_DETAILS}?docno=${encodeURIComponent(docno)}&cd_code=${encodeURIComponent(cdcode)}&location_code=${encodeURIComponent(locationCode || selectedLocationInfo?.location_code || '')}&unit=${encodeURIComponent(unit)}&price=${encodeURIComponent(price)}`;
+            const { docno, subId, cdcode, locationCode, unit, price, shipflag } = keys;
+            const apiUrl = `${API_GET_DETAILS}?docno=${encodeURIComponent(docno)}&sub_id=${encodeURIComponent(subId || '')}&cd_code=${encodeURIComponent(cdcode)}&location_code=${encodeURIComponent(locationCode || selectedLocationInfo?.location_code || '')}&unit=${encodeURIComponent(unit)}&price=${encodeURIComponent(price)}`;
             const response = await fetch(apiUrl);
             const result = await response.json();
 
@@ -1584,6 +1586,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const formData = new FormData();
             formData.append('docno', docno);
+            formData.append('sub_id', row?.dataset.subId || '');
             formData.append('cd_code', cdcode);
             formData.append('location_code', row?.dataset.locationCode || selectedLocationInfo?.location_code || '');
             formData.append('new_status', status);
