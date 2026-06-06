@@ -87,10 +87,26 @@
         <div id="paginationControls" class="flex justify-between items-center mt-6"></div>
     </div>
 
+    <div id="detailsModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="mx-4 max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[2rem] border border-slate-200/80 bg-white/95 p-6 text-slate-900 shadow-2xl shadow-slate-200/80 backdrop-blur md:p-8">
+            <div class="mb-6 flex items-start justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800">รายละเอียดรายการ</h2>
+                    <p class="text-sm text-slate-500">ข้อมูลเต็มจากหน้าหลัก</p>
+                </div>
+                <button type="button" id="closeDetailsModal" class="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" aria-label="ปิดรายละเอียด">
+                    <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div id="detailsContent" class="space-y-4"></div>
+        </div>
+    </div>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const API_FETCH_ITEMS = './api/fetch_items.php';
     const API_DELETE_ITEM = './api/delete_item.php';
+    const API_GET_DETAILS = './api/get_item_details.php';
     const REPORT_CUSTOMER_KEYWORD = 'นำรุ่งเคหะภัณฑ์สำนักงานใหญ่';
     const ITEMS_PER_PAGE = 20;
 
@@ -109,11 +125,124 @@ document.addEventListener('DOMContentLoaded', () => {
     const endDateInput = document.getElementById('endDate');
     const filterBtn = document.getElementById('filterBtn');
     const clearFilterBtn = document.getElementById('clearFilterBtn');
+    const detailsModal = document.getElementById('detailsModal');
+    const detailsContent = document.getElementById('detailsContent');
+    const closeDetailsModalBtn = document.getElementById('closeDetailsModal');
 
     let currentPage = 1;
     let filteredItemsCache = [];
     const actionButtonClass = 'inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50';
     const paginationButtonClass = 'inline-flex h-9 min-w-9 items-center justify-center rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-600 transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-50';
+
+    const escapeHtml = (value) => {
+        if (value === null || value === undefined) return '';
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
+    const formatQty = (value) => {
+        const number = parseFloat(value);
+        if (!Number.isFinite(number)) return '0';
+        return Number.isInteger(number)
+            ? number.toLocaleString()
+            : number.toLocaleString(undefined, { maximumFractionDigits: 3 });
+    };
+
+    const buildReceiveHistoryHTML = (item) => {
+        const history = Array.isArray(item.receive_history) ? item.receive_history : [];
+        const unit = escapeHtml(item.Lname_unit || item.unit || '');
+        const historyRows = history.length > 0
+            ? history.map((entry, index) => {
+                const receivedAt = entry.received_at
+                    ? `${new Date(entry.received_at).toLocaleString('th-TH', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })} น.`
+                    : '-';
+                return `
+                    <div class="rounded-xl border border-orange-100 bg-orange-50/70 p-3">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <p class="font-bold text-orange-800">ครั้งที่ ${index + 1}</p>
+                            <p class="font-semibold text-slate-800">${formatQty(entry.received_qty)} ${unit}</p>
+                        </div>
+                        <div class="mt-1 grid grid-cols-1 gap-1 text-xs text-slate-600 md:grid-cols-2">
+                            <p>ผู้รับ: <span class="font-semibold">${escapeHtml(entry.received_by_employee || '-')}</span></p>
+                            <p>เวลา: <span class="font-semibold">${escapeHtml(receivedAt)}</span></p>
+                        </div>
+                    </div>
+                `;
+            }).join('')
+            : '<p class="rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-500">ยังไม่มีประวัติการรับแบบแยกครั้ง</p>';
+
+        return `
+            <section>
+                <h3 class="text-lg font-semibold text-gray-700 border-b mt-4 mb-3 pb-2">ประวัติการรับสินค้า</h3>
+                <div class="space-y-3">${historyRows}</div>
+            </section>
+        `;
+    };
+
+    const showItemDetailsModal = async (keys) => {
+        detailsModal.classList.remove('hidden');
+        detailsContent.innerHTML = '<div class="flex justify-center items-center py-10"><div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div></div>';
+
+        try {
+            const { docno, cdcode, locationCode, unit, price, shipflag } = keys;
+            const apiUrl = `${API_GET_DETAILS}?docno=${encodeURIComponent(docno)}&cd_code=${encodeURIComponent(cdcode)}&location_code=${encodeURIComponent(locationCode || '')}&unit=${encodeURIComponent(unit || '')}&price=${encodeURIComponent(price || '')}`;
+            const response = await fetch(apiUrl);
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'ไม่สามารถโหลดข้อมูลรายละเอียดได้');
+            }
+
+            const item = result.data;
+            const docDateText = item.docdate ? new Date(item.docdate).toLocaleDateString('th-TH', { day: '2-digit', month: 'long', year: 'numeric'}) : '-';
+            const lastUpdateText = item.last_update ? `${new Date(item.last_update).toLocaleString('th-TH', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute:'2-digit'})} น.` : '-';
+            const createdAtText = item.create_at ? `${new Date(item.create_at).toLocaleString('th-TH', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute:'2-digit'})} น.` : '-';
+            const shipFlagHTML = shipflag === '1'
+                ? '<p class="font-semibold text-blue-700">แผนกส่ง</p>'
+                : '<p class="font-semibold text-orange-600">ลูกค้ารับเอง</p>';
+
+            detailsContent.innerHTML = `
+                <section>
+                    <h3 class="text-lg font-semibold text-gray-700 border-b mb-3 pb-2">ข้อมูลเอกสาร</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                        <div><p class="text-gray-500">เลขที่เอกสาร (DocNo)</p><p class="font-bold text-base">${escapeHtml(item.docno || '-')}</p></div>
+                        <div><p class="text-gray-500">วันที่เอกสาร</p><p class="font-semibold">${escapeHtml(docDateText)}</p></div>
+                        <div><p class="text-gray-500">ลูกค้า</p><p class="font-semibold">${escapeHtml(item.CUSTNAME || item.customer_name || '-')}</p></div>
+                        <div><p class="text-gray-500">สาขา (Branch)</p><p class="font-semibold">${escapeHtml(item.branch || '-')}</p></div>
+                        <div><p class="text-gray-500">พนักงานขาย</p><p class="font-semibold">${escapeHtml(item.user_lname || '-')}</p></div>
+                        <div class="md:col-span-2"><p class="text-gray-500">หมายเหตุเอกสาร</p><p class="font-semibold">${escapeHtml(item.REMARK || '-')}</p></div>
+                    </div>
+                </section>
+                <section>
+                    <h3 class="text-lg font-semibold text-gray-700 border-b mt-4 mb-3 pb-2">ข้อมูลสินค้า</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                        <div class="md:col-span-2"><p class="text-gray-500">ชื่อสินค้า</p><p class="font-bold text-base text-green-700">${escapeHtml(item.cd_name || '-')}</p></div>
+                        <div><p class="text-gray-500">รหัสสินค้า</p><p class="font-semibold">${escapeHtml(item.cd_code || '-')}</p></div>
+                        <div><p class="text-gray-500">จำนวน</p><p class="font-semibold">${formatQty(item.qty)} ${escapeHtml(item.Lname_unit || item.unit || '')}</p></div>
+                        <div><p class="text-gray-500">ราคา/หน่วย</p><p class="font-semibold">${parseFloat(item.UNITPRICE || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p></div>
+                        <div><p class="text-gray-500">รวมเป็นเงิน</p><p class="font-semibold">${parseFloat(item.NETAMOUNT || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p></div>
+                    </div>
+                </section>
+                <section>
+                    <h3 class="text-lg font-semibold text-gray-700 border-b mt-4 mb-3 pb-2">ข้อมูลการจัดส่ง</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                        <div><p class="text-gray-500">รูปแบบการจัดส่ง</p>${shipFlagHTML}</div>
+                        <div><p class="text-gray-500">สถานะ</p><p class="font-bold text-base text-red-600">${escapeHtml(item.delivery_status || 'รอตรวจรับ')}</p></div>
+                        <div><p class="text-gray-500">วันที่เพิ่มข้อมูล</p><p class="font-semibold">${escapeHtml(createdAtText)}</p></div>
+                        <div><p class="text-gray-500">อัปเดตล่าสุด</p><p class="font-semibold">${escapeHtml(lastUpdateText)}</p></div>
+                        <div><p class="text-gray-500">เจ้าหน้าที่รับสินค้า</p><p class="font-semibold">${escapeHtml(item.received_by_employee || '-')}</p></div>
+                        <div class="md:col-span-2"><p class="text-gray-500">หมายเหตุการตรวจรับ</p><p class="font-semibold">${escapeHtml(item.delivery_remark || '-')}</p></div>
+                    </div>
+                </section>
+                ${buildReceiveHistoryHTML(item)}
+            `;
+        } catch (error) {
+            detailsContent.innerHTML = `<p class="text-red-500 text-center p-4">${escapeHtml(error.message)}</p>`;
+        }
+    };
 
     const showLoading = () => {
         tableBody.innerHTML = '';
@@ -196,7 +325,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${statusText}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lastUpdate}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
-                    <button type="button" class="delete-btn ${actionButtonClass} bg-red-500 text-white hover:bg-red-600 focus:ring-red-300" data-docno="${item.docno || ''}" data-cdcode="${item.cd_code || ''}" data-location-code="${item.location_code || ''}">ลบ</button>
+                    <div class="flex flex-wrap items-center justify-center gap-2">
+                        <button type="button" class="detail-btn ${actionButtonClass} bg-blue-100 text-blue-800 hover:bg-blue-200 focus:ring-blue-300" data-docno="${escapeHtml(item.docno || '')}" data-cdcode="${escapeHtml(item.cd_code || '')}" data-location-code="${escapeHtml(item.location_code || '')}" data-unit="${escapeHtml(item.unit || '')}" data-price="${escapeHtml(item.UNITPRICE || '0')}" data-shipflag="${escapeHtml(item.shipflag || '0')}">ดูรายละเอียด</button>
+                        <button type="button" class="delete-btn ${actionButtonClass} bg-red-500 text-white hover:bg-red-600 focus:ring-red-300" data-docno="${item.docno || ''}" data-cdcode="${item.cd_code || ''}" data-location-code="${item.location_code || ''}">ลบ</button>
+                    </div>
                 </td>
             `;
             tableBody.appendChild(row);
@@ -319,9 +451,25 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     tableBody.addEventListener('click', (event) => {
+        const detailButton = event.target.closest('.detail-btn');
+        if (detailButton) {
+            showItemDetailsModal(detailButton.dataset);
+            return;
+        }
+
         const deleteButton = event.target.closest('.delete-btn');
         if (deleteButton) {
             handleDeleteItem(deleteButton);
+        }
+    });
+
+    closeDetailsModalBtn.addEventListener('click', () => {
+        detailsModal.classList.add('hidden');
+    });
+
+    detailsModal.addEventListener('click', (event) => {
+        if (event.target === detailsModal) {
+            detailsModal.classList.add('hidden');
         }
     });
 
