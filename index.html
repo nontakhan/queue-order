@@ -259,14 +259,21 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentDbProfile = null;
     const selectedBatchItems = new Map();
     let isStatusActionInProgress = false;
-    const EXCLUDED_CUSTOMER_KEYWORD = 'นำรุ่งเคหะภัณฑ์สำนักงานใหญ่';
+    const EXCLUDED_CUSTOMER_KEYWORDS = [
+        'นำรุ่งเคหะภัณฑ์สำนักงานใหญ่',
+        'นำรุ่งทูลสำนักงานใหญ่',
+        'นำรุ่งธกิจสำนักงานใหญ่'
+    ];
 
     const normalizeCustomerName = (value = '') => value
         .replace(/[\s().]/g, '')
         .replace(/　/g, '')
         .trim();
 
-    const isExcludedCustomer = (value = '') => normalizeCustomerName(value).includes(EXCLUDED_CUSTOMER_KEYWORD);
+    const isExcludedCustomer = (value = '') => {
+        const normalizedCustomer = normalizeCustomerName(value);
+        return EXCLUDED_CUSTOMER_KEYWORDS.some((keyword) => normalizedCustomer.includes(keyword));
+    };
 
     const organizeHeaderControls = () => {
         const controlsRoot = document.getElementById('historyButtons')?.parentElement;
