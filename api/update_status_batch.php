@@ -65,7 +65,10 @@ function parse_batch_items(string $itemsJson): array
         $cdCode = isset($item['cd_code']) && is_scalar($item['cd_code'])
             ? trim((string)$item['cd_code'])
             : '';
-        if ($docno === '' || $cdCode === '') {
+        $locationCode = isset($item['location_code']) && is_scalar($item['location_code'])
+            ? trim((string)$item['location_code'])
+            : '';
+        if ($docno === '' || $cdCode === '' || $locationCode === '') {
             throw new Exception('Invalid item identity.');
         }
 
@@ -82,6 +85,7 @@ function parse_batch_items(string $itemsJson): array
         $normalizedItems[] = [
             'docno' => $docno,
             'cd_code' => $cdCode,
+            'location_code' => $locationCode,
             'unit' => $unit,
             'price' => $unitPrice,
         ];
@@ -97,13 +101,14 @@ function execute_batch_received(
 ): void {
     $docno = $item['docno'];
     $cdCode = $item['cd_code'];
+    $locationCode = $item['location_code'];
     $unit = $item['unit'];
     $unitPrice = $item['price'];
     $hasFullIdentity = $unit !== '' && $unitPrice !== null;
 
     $selectSql = 'SELECT qty, COALESCE(received_qty_total, 0) AS received_qty_total
         FROM transfer_data_from_mssql
-        WHERE docno = ? AND cd_code = ?';
+        WHERE docno = ? AND cd_code = ? AND location_code = ?';
     if ($hasFullIdentity) {
         $selectSql .= ' AND Lname_unit = ? AND UNITPRICE = ?';
     }
@@ -115,9 +120,9 @@ function execute_batch_received(
     }
 
     if ($hasFullIdentity) {
-        $stmt->bind_param('sssd', $docno, $cdCode, $unit, $unitPrice);
+        $stmt->bind_param('ssssd', $docno, $cdCode, $locationCode, $unit, $unitPrice);
     } else {
-        $stmt->bind_param('ss', $docno, $cdCode);
+        $stmt->bind_param('sss', $docno, $cdCode, $locationCode);
     }
     if (!$stmt->execute()) {
         $error = $stmt->error;
@@ -174,7 +179,7 @@ function execute_batch_received(
             received_by_employee = ?,
             received_qty_total = qty,
             received_count = received_count + 1
-        WHERE docno = ? AND cd_code = ?';
+        WHERE docno = ? AND cd_code = ? AND location_code = ?';
     if ($hasFullIdentity) {
         $updateSql .= ' AND Lname_unit = ? AND UNITPRICE = ?';
     }
@@ -185,9 +190,9 @@ function execute_batch_received(
     }
 
     if ($hasFullIdentity) {
-        $stmt->bind_param('sssssd', $newStatus, $receivedByEmployee, $docno, $cdCode, $unit, $unitPrice);
+        $stmt->bind_param('ssssssd', $newStatus, $receivedByEmployee, $docno, $cdCode, $locationCode, $unit, $unitPrice);
     } else {
-        $stmt->bind_param('ssss', $newStatus, $receivedByEmployee, $docno, $cdCode);
+        $stmt->bind_param('sssss', $newStatus, $receivedByEmployee, $docno, $cdCode, $locationCode);
     }
     if (!$stmt->execute()) {
         $error = $stmt->error;
@@ -210,6 +215,7 @@ function execute_batch_non_received(
 ): void {
     $docno = $item['docno'];
     $cdCode = $item['cd_code'];
+    $locationCode = $item['location_code'];
     $unit = $item['unit'];
     $unitPrice = $item['price'];
     $hasFullIdentity = $unit !== '' && $unitPrice !== null;
@@ -220,7 +226,7 @@ function execute_batch_non_received(
             received_by_employee = NULL,
             received_qty_total = 0,
             received_count = 0
-        WHERE docno = ? AND cd_code = ?';
+        WHERE docno = ? AND cd_code = ? AND location_code = ?';
     if ($hasFullIdentity) {
         $updateSql .= ' AND Lname_unit = ? AND UNITPRICE = ?';
     }
@@ -231,9 +237,9 @@ function execute_batch_non_received(
     }
 
     if ($hasFullIdentity) {
-        $stmt->bind_param('sssssd', $newStatus, $remark, $docno, $cdCode, $unit, $unitPrice);
+        $stmt->bind_param('ssssssd', $newStatus, $remark, $docno, $cdCode, $locationCode, $unit, $unitPrice);
     } else {
-        $stmt->bind_param('ssss', $newStatus, $remark, $docno, $cdCode);
+        $stmt->bind_param('sssss', $newStatus, $remark, $docno, $cdCode, $locationCode);
     }
     if (!$stmt->execute()) {
         $error = $stmt->error;

@@ -11,11 +11,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $docno = isset($_POST['docno']) ? trim($_POST['docno']) : '';
 $cdCode = isset($_POST['cd_code']) ? trim($_POST['cd_code']) : '';
+$locationCode = isset($_POST['location_code']) ? trim($_POST['location_code']) : '';
 $unit = isset($_POST['unit']) ? trim($_POST['unit']) : '';
 $price = isset($_POST['price']) ? trim($_POST['price']) : '';
 
-if ($docno === '' || $cdCode === '') {
-    app_json_response(['success' => false, 'message' => 'docno and cd_code are required'], 422);
+if ($docno === '' || $cdCode === '' || $locationCode === '') {
+    app_json_response(['success' => false, 'message' => 'docno, cd_code, and location_code are required'], 422);
 }
 
 if ($price !== '' && !is_numeric($price)) {
@@ -26,9 +27,9 @@ $conn = app_db();
 
 try {
     if ($unit !== '' && $price !== '') {
-        $stmt = $conn->prepare('DELETE FROM transfer_data_from_mssql WHERE docno = ? AND cd_code = ? AND Lname_unit = ? AND UNITPRICE = ?');
+        $stmt = $conn->prepare('DELETE FROM transfer_data_from_mssql WHERE docno = ? AND cd_code = ? AND location_code = ? AND Lname_unit = ? AND UNITPRICE = ?');
     } else {
-        $stmt = $conn->prepare('DELETE FROM transfer_data_from_mssql WHERE docno = ? AND cd_code = ?');
+        $stmt = $conn->prepare('DELETE FROM transfer_data_from_mssql WHERE docno = ? AND cd_code = ? AND location_code = ?');
     }
     if ($stmt === false) {
         throw new Exception('Prepare statement failed: ' . $conn->error);
@@ -36,13 +37,13 @@ try {
 
     if ($unit !== '' && $price !== '') {
         $priceValue = (float) $price;
-        $stmt->bind_param('sssd', $docno, $cdCode, $unit, $priceValue);
+        $stmt->bind_param('ssssd', $docno, $cdCode, $locationCode, $unit, $priceValue);
     } else {
-        $stmt->bind_param('ss', $docno, $cdCode);
+        $stmt->bind_param('sss', $docno, $cdCode, $locationCode);
     }
     $stmt->execute();
 
-    if ($stmt->affected_rows <= 0) {
+    if ($stmt->affected_rows !== 1) {
         throw new Exception('ไม่พบรายการที่ต้องการลบ');
     }
 

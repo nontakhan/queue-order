@@ -196,7 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${statusText}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lastUpdate}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
-                    <button type="button" class="delete-btn ${actionButtonClass} bg-red-500 text-white hover:bg-red-600 focus:ring-red-300" data-docno="${item.docno || ''}" data-cdcode="${item.cd_code || ''}">ลบ</button>
+                    <button type="button" class="delete-btn ${actionButtonClass} bg-red-500 text-white hover:bg-red-600 focus:ring-red-300" data-docno="${item.docno || ''}" data-cdcode="${item.cd_code || ''}" data-location-code="${item.location_code || ''}">ลบ</button>
                 </td>
             `;
             tableBody.appendChild(row);
@@ -257,7 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const handleDeleteItem = async (button) => {
-        const { docno, cdcode } = button.dataset;
+        const { docno, cdcode, locationCode } = button.dataset;
         const result = await Swal.fire({
             title: 'ยืนยันการลบ?',
             text: `ต้องการลบ DocNo: ${docno} ใช่หรือไม่?`,
@@ -277,6 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const formData = new FormData();
             formData.append('docno', docno);
             formData.append('cd_code', cdcode);
+            formData.append('location_code', locationCode || '');
 
             const response = await fetch(API_DELETE_ITEM, {
                 method: 'POST',

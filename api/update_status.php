@@ -57,6 +57,7 @@ function handle_receive_status_update(
     mysqli $conn,
     string $docno,
     string $cdCode,
+    string $locationCode,
     string $unit,
     ?float $unitPrice,
     string $receivedByEmployee,
@@ -68,7 +69,7 @@ function handle_receive_status_update(
         $hasFullIdentity = $unit !== '' && $unitPrice !== null;
         $selectSql = 'SELECT qty, COALESCE(received_qty_total, 0) AS received_qty_total
             FROM transfer_data_from_mssql
-            WHERE docno = ? AND cd_code = ?';
+            WHERE docno = ? AND cd_code = ? AND location_code = ?';
         if ($hasFullIdentity) {
             $selectSql .= ' AND Lname_unit = ? AND UNITPRICE = ?';
         }
@@ -80,9 +81,9 @@ function handle_receive_status_update(
         }
 
         if ($hasFullIdentity) {
-            $stmt->bind_param('sssd', $docno, $cdCode, $unit, $unitPrice);
+            $stmt->bind_param('ssssd', $docno, $cdCode, $locationCode, $unit, $unitPrice);
         } else {
-            $stmt->bind_param('ss', $docno, $cdCode);
+            $stmt->bind_param('sss', $docno, $cdCode, $locationCode);
         }
         $stmt->execute();
         $result = $stmt->get_result();
@@ -140,7 +141,7 @@ function handle_receive_status_update(
                 received_by_employee = ?,
                 received_qty_total = ?,
                 received_count = received_count + 1
-            WHERE docno = ? AND cd_code = ?';
+            WHERE docno = ? AND cd_code = ? AND location_code = ?';
         if ($hasFullIdentity) {
             $updateSql .= ' AND Lname_unit = ? AND UNITPRICE = ?';
         }
@@ -151,11 +152,14 @@ function handle_receive_status_update(
         }
 
         if ($hasFullIdentity) {
-            $stmt->bind_param('ssdsssd', $newStatus, $receivedByEmployee, $newReceivedQty, $docno, $cdCode, $unit, $unitPrice);
+            $stmt->bind_param('ssdssssd', $newStatus, $receivedByEmployee, $newReceivedQty, $docno, $cdCode, $locationCode, $unit, $unitPrice);
         } else {
-            $stmt->bind_param('ssdss', $newStatus, $receivedByEmployee, $newReceivedQty, $docno, $cdCode);
+            $stmt->bind_param('ssdsss', $newStatus, $receivedByEmployee, $newReceivedQty, $docno, $cdCode, $locationCode);
         }
         $stmt->execute();
+        if ($stmt->affected_rows !== 1) {
+            throw new Exception('Item update did not affect exactly one row.');
+        }
         $stmt->close();
 
         $conn->commit();
@@ -166,12 +170,13 @@ function handle_receive_status_update(
 }
 
 try {
-    if (!isset($_POST['docno'], $_POST['cd_code'], $_POST['new_status'])) {
+    if (!isset($_POST['docno'], $_POST['cd_code'], $_POST['location_code'], $_POST['new_status'])) {
         throw new Exception('Missing required parameters.');
     }
 
     $docno = $_POST['docno'];
     $cdCode = $_POST['cd_code'];
+    $locationCode = trim((string)$_POST['location_code']);
     $newStatus = $_POST['new_status'];
     $remark = isset($_POST['remark']) ? trim($_POST['remark']) : null;
     $receivedByEmployee = isset($_POST['received_by_employee']) ? trim($_POST['received_by_employee']) : null;
@@ -179,12 +184,16 @@ try {
     $unit = isset($_POST['unit']) ? trim((string)$_POST['unit']) : '';
     $unitPrice = parse_optional_price($_POST['price'] ?? null);
 
+    if ($locationCode === '') {
+        throw new Exception('Missing location code.');
+    }
+
     if ($newStatus === app_status_received()) {
         if ($receivedByEmployee === null || $receivedByEmployee === '') {
             throw new Exception('Missing receiving employee.');
         }
 
-        handle_receive_status_update($conn, $docno, $cdCode, $unit, $unitPrice, $receivedByEmployee, $receivedQty);
+        handle_receive_status_update($conn, $docno, $cdCode, $locationCode, $unit, $unitPrice, $receivedByEmployee, $receivedQty);
         $conn->close();
 
         app_json_response(['success' => true, 'message' => 'Receive status updated successfully.']);
@@ -209,10 +218,11 @@ try {
         $setClauses[] = 'received_count = 0';
     }
 
-    $whereClauses = ['docno = ?', 'cd_code = ?'];
+    $whereClauses = ['docno = ?', 'cd_code = ?', 'location_code = ?'];
     $params[] = $docno;
     $params[] = $cdCode;
-    $types .= 'ss';
+    $params[] = $locationCode;
+    $types .= 'sss';
 
     if ($unit !== '' && $unitPrice !== null) {
         $whereClauses[] = 'Lname_unit = ?';
@@ -230,6 +240,9 @@ try {
 
     $stmt->bind_param($types, ...$params);
     $stmt->execute();
+    if ($stmt->affected_rows > 1) {
+        throw new Exception('Item update affected more than one row.');
+    }
     $message = $stmt->affected_rows > 0 ? 'Status updated successfully.' : 'No rows updated. Item might not exist or status is already the same.';
     $stmt->close();
     $conn->close();

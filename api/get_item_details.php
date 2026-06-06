@@ -10,17 +10,17 @@ $stmt = null;
 $historyStmt = null;
 
 try {
-    if (!isset($_GET['docno'], $_GET['cd_code'], $_GET['unit'], $_GET['price'])) {
+    if (!isset($_GET['docno'], $_GET['cd_code'], $_GET['location_code'], $_GET['unit'], $_GET['price'])) {
         throw new Exception('Missing required parameters for details lookup.');
     }
 
-    $sql = 'SELECT * FROM transfer_data_from_mssql WHERE docno = ? AND cd_code = ? AND Lname_unit = ? AND UNITPRICE = ?';
+    $sql = 'SELECT * FROM transfer_data_from_mssql WHERE docno = ? AND cd_code = ? AND location_code = ? AND Lname_unit = ? AND UNITPRICE = ?';
     $stmt = $conn->prepare($sql);
     if ($stmt === false) {
         throw new Exception('Prepare failed: ' . $conn->error);
     }
 
-    $stmt->bind_param('sssd', $_GET['docno'], $_GET['cd_code'], $_GET['unit'], $_GET['price']);
+    $stmt->bind_param('ssssd', $_GET['docno'], $_GET['cd_code'], $_GET['location_code'], $_GET['unit'], $_GET['price']);
     $stmt->execute();
     $result = $stmt->get_result();
     $item = $result->fetch_assoc();

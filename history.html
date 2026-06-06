@@ -277,7 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const showNoData = (message) => { selectedCancelledItems.clear(); updateBulkDeleteState(); tableBody.innerHTML = ''; paginationControls.innerHTML = ''; tableStatus.innerHTML = `<p class="py-10">${escapeHtml(message)}</p>`; tableStatus.classList.remove('hidden'); };
     const hideStatus = () => { tableBody.innerHTML = ''; tableStatus.classList.add('hidden'); };
 
-    const getItemKey = ({ docno = '', cdcode = '', unit = '', price = '' }) => [docno, cdcode, unit, price].join('||');
+    const getItemKey = ({ docno = '', cdcode = '', locationCode = '', unit = '', price = '' }) => [docno, cdcode, locationCode, unit, price].join('||');
 
     const updateBulkDeleteState = () => {
         const selectedCount = selectedCancelledItems.size;
@@ -516,6 +516,7 @@ document.addEventListener('DOMContentLoaded', () => {
             row.className = `${groupColors[colorIndex]} hover:bg-yellow-100 transition-colors duration-200 item-row`;
             row.dataset.docno = item.docno;
             row.dataset.cdcode = item.cd_code;
+            row.dataset.locationCode = item.location_code || selectedLocation || '';
             row.dataset.unit = item.unit || '';
             row.dataset.price = item.UNITPRICE || '0';
             row.dataset.qty = item.qty || '0';
@@ -530,6 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const itemKey = getItemKey({
                 docno: item.docno || '',
                 cdcode: item.cd_code || '',
+                locationCode: item.location_code || selectedLocation || '',
                 unit: item.unit || '',
                 price: item.UNITPRICE || '0'
             });
@@ -537,7 +539,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let rowHTML = `
                 ${isCancelledPage ? `
                 <td class="px-4 py-4 text-center">
-                    <input type="checkbox" class="cancelled-select-checkbox h-5 w-5 rounded border-red-300 text-red-600 focus:ring-red-500" data-key="${escapeHtml(itemKey)}" data-docno="${docNoHTML}" data-cdcode="${cdCodeHTML}" data-unit="${unitHTML}" data-price="${priceHTML}">
+                    <input type="checkbox" class="cancelled-select-checkbox h-5 w-5 rounded border-red-300 text-red-600 focus:ring-red-500" data-key="${escapeHtml(itemKey)}" data-docno="${docNoHTML}" data-cdcode="${cdCodeHTML}" data-location-code="${escapeHtml(item.location_code || selectedLocation || '')}" data-unit="${unitHTML}" data-price="${priceHTML}">
                 </td>` : ''}
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800">${docNoHTML}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(docDate)}</td>
@@ -582,8 +584,8 @@ document.addEventListener('DOMContentLoaded', () => {
         detailsContent.innerHTML = '<div class="flex justify-center items-center py-10"><div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div></div>';
         
         try {
-            const { docno, cdcode, unit, price } = keys;
-            const apiUrl = `${API_GET_DETAILS}?docno=${encodeURIComponent(docno)}&cd_code=${encodeURIComponent(cdcode)}&unit=${encodeURIComponent(unit)}&price=${encodeURIComponent(price)}`;
+            const { docno, cdcode, locationCode, unit, price } = keys;
+            const apiUrl = `${API_GET_DETAILS}?docno=${encodeURIComponent(docno)}&cd_code=${encodeURIComponent(cdcode)}&location_code=${encodeURIComponent(locationCode || selectedLocation || '')}&unit=${encodeURIComponent(unit)}&price=${encodeURIComponent(price)}`;
             const response = await fetch(apiUrl);
             const result = await response.json();
 
@@ -724,6 +726,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     formData.append('docno', docno);
                     formData.append('cd_code', cdcode);
                     formData.append('new_status', status);
+                    formData.append('location_code', row?.dataset.locationCode || selectedLocation || '');
                     formData.append('unit', row?.dataset.unit || '');
                     formData.append('price', row?.dataset.price || '');
                     if (receivedByEmployee) {
@@ -746,6 +749,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleDeleteItem = async (button) => {
         const row = button.closest('tr');
         const { docno, cdcode } = button.dataset;
+        const locationCode = button.dataset.locationCode || row?.dataset.locationCode || selectedLocation || '';
         const unit = button.dataset.unit || row?.dataset.unit || '';
         const price = button.dataset.price || row?.dataset.price || '';
         Swal.fire({
@@ -763,6 +767,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const formData = new FormData();
                     formData.append('docno', docno);
                     formData.append('cd_code', cdcode);
+                    formData.append('location_code', locationCode);
                     if (unit) {
                         formData.append('unit', unit);
                     }
@@ -780,10 +785,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    const deleteItem = async ({ docno, cdcode, unit = '', price = '' }) => {
+    const deleteItem = async ({ docno, cdcode, locationCode = '', unit = '', price = '' }) => {
         const formData = new FormData();
         formData.append('docno', docno);
         formData.append('cd_code', cdcode);
+        formData.append('location_code', locationCode || selectedLocation || '');
         if (unit) {
             formData.append('unit', unit);
         }
@@ -868,6 +874,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const item = {
                 docno: checkbox.dataset.docno || '',
                 cdcode: checkbox.dataset.cdcode || '',
+                locationCode: checkbox.dataset.locationCode || selectedLocation || '',
                 unit: checkbox.dataset.unit || '',
                 price: checkbox.dataset.price || ''
             };
@@ -888,6 +895,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const item = {
                 docno: checkbox.dataset.docno || '',
                 cdcode: checkbox.dataset.cdcode || '',
+                locationCode: checkbox.dataset.locationCode || selectedLocation || '',
                 unit: checkbox.dataset.unit || '',
                 price: checkbox.dataset.price || ''
             };
