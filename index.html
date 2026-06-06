@@ -396,6 +396,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentUserPanel = document.getElementById('currentUserPanel');
         const currentUserName = document.getElementById('currentUserName');
         const logoutBtn = document.getElementById('logoutBtn');
+        const canViewAllBills = currentUser && Number(currentUser.can_view_all_bills || 0) === 1;
 
         if (currentUser) {
             const displayName = currentUser.full_name || currentUser.username || 'ผู้ใช้';
@@ -425,7 +426,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         adminEntryLink.className = 'header-action-btn inline-flex rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-200';
-        myBillsEntryLink.className = `header-action-btn inline-flex rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-200 ${currentUser && currentUser.role === 'admin' ? '' : 'hidden'}`;
+        myBillsEntryLink.className = `header-action-btn inline-flex rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-200 ${currentUser && (currentUser.role === 'admin' || canViewAllBills) ? '' : 'hidden'}`;
 
         const workToolsRow = document.getElementById('headerWorkTools');
         if (workToolsRow && adminEntryLink.parentElement !== workToolsRow) {

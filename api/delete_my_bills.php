@@ -10,10 +10,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $user = app_require_login(false);
-$isAdmin = ($user['role'] ?? '') === 'admin';
+$canViewAllBills = app_can_view_all_bills($user);
 $salesLname = trim((string) ($user['sales_lname'] ?? ''));
 
-if (!$isAdmin && $salesLname === '') {
+if (!$canViewAllBills && $salesLname === '') {
     app_json_response(['success' => false, 'message' => 'ยังไม่ได้ผูกชื่อพนักงานขายให้ผู้ใช้นี้'], 422);
 }
 
@@ -53,12 +53,12 @@ try {
             throw new Exception('ข้อมูลรายการไม่ครบถ้วน');
         }
 
-        if ($isAdmin && $ownerSalesLname === '') {
+        if ($canViewAllBills && $ownerSalesLname === '') {
             throw new Exception('Missing owner parameter');
         }
 
         $priceValue = (float) $price;
-        $targetSalesLname = $isAdmin ? $ownerSalesLname : $salesLname;
+        $targetSalesLname = $canViewAllBills ? $ownerSalesLname : $salesLname;
         $stmt->bind_param('ssssd', $targetSalesLname, $docno, $cdCode, $unit, $priceValue);
         if (!$stmt->execute()) {
             throw new Exception($stmt->error);

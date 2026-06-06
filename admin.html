@@ -142,10 +142,11 @@
                     <div><label for="defaultLocationCode" class="mb-1 block text-sm font-medium text-slate-700">คลังเริ่มต้น</label><select id="defaultLocationCode" name="default_location_code" class="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"><option value="">เลือกได้ทุกคลัง</option></select></div>
                     <div><label for="salesLname" class="mb-1 block text-sm font-medium text-slate-700">ชื่อพนักงานขาย</label><select id="salesLname" name="sales_lname" class="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"><option value="">ไม่ผูกชื่อพนักงานขาย</option></select></div>
                     <div><label for="userStatus" class="mb-1 block text-sm font-medium text-slate-700">สถานะ</label><select id="userStatus" name="is_active" class="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"><option value="1">เปิดใช้งาน</option><option value="0">ปิดใช้งาน</option></select></div>
+                    <label class="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800"><input id="canViewAllBills" name="can_view_all_bills" type="checkbox" value="1" class="h-5 w-5 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500">ดูบิลทุกพนักงานขาย</label>
                     <div class="md:col-span-2"><button type="submit" class="rounded-2xl bg-emerald-600 px-5 py-3 font-semibold text-white transition hover:bg-emerald-700">บันทึกผู้ใช้</button></div>
                 </form>
                 <div class="mt-6 overflow-x-auto">
-                    <table id="usersTable" class="w-full text-left"><thead class="bg-slate-50"><tr><th class="px-4 py-3 text-xs uppercase text-slate-500">ชื่อผู้ใช้</th><th class="px-4 py-3 text-xs uppercase text-slate-500">ชื่อแสดงผล</th><th class="px-4 py-3 text-xs uppercase text-slate-500">บทบาท</th><th class="px-4 py-3 text-xs uppercase text-slate-500">คลังเริ่มต้น</th><th class="px-4 py-3 text-xs uppercase text-slate-500">ชื่อพนักงานขาย</th><th class="px-4 py-3 text-center text-xs uppercase text-slate-500">สถานะ</th><th class="px-4 py-3 text-center text-xs uppercase text-slate-500">จัดการ</th></tr></thead><tbody id="usersTableBody" class="divide-y divide-slate-200"></tbody></table>
+                    <table id="usersTable" class="w-full text-left"><thead class="bg-slate-50"><tr><th class="px-4 py-3 text-xs uppercase text-slate-500">ชื่อผู้ใช้</th><th class="px-4 py-3 text-xs uppercase text-slate-500">ชื่อแสดงผล</th><th class="px-4 py-3 text-xs uppercase text-slate-500">บทบาท</th><th class="px-4 py-3 text-xs uppercase text-slate-500">คลังเริ่มต้น</th><th class="px-4 py-3 text-xs uppercase text-slate-500">ชื่อพนักงานขาย</th><th class="px-4 py-3 text-center text-xs uppercase text-slate-500">ดูทุกบิล</th><th class="px-4 py-3 text-center text-xs uppercase text-slate-500">สถานะ</th><th class="px-4 py-3 text-center text-xs uppercase text-slate-500">จัดการ</th></tr></thead><tbody id="usersTableBody" class="divide-y divide-slate-200"></tbody></table>
                 </div>
             </section>
 
@@ -207,6 +208,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const soundsTableBody = document.getElementById('soundsTableBody');
     const defaultLocationCode = document.getElementById('defaultLocationCode');
     const salesLname = document.getElementById('salesLname');
+    const canViewAllBills = document.getElementById('canViewAllBills');
     const employeeLocationCode = document.getElementById('employeeLocationCode');
     const soundLocationCode = document.getElementById('soundLocationCode');
     const soundFileInput = document.getElementById('soundFile');
@@ -257,7 +259,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             $(salesLname).trigger('change');
         }
     };
-    const resetUserForm = () => { userForm.reset(); userId.value = ''; userStatus.value = '1'; role.value = 'user'; defaultLocationCode.value = ''; setSalesNameValue(''); };
+    const resetUserForm = () => { userForm.reset(); userId.value = ''; userStatus.value = '1'; role.value = 'user'; defaultLocationCode.value = ''; canViewAllBills.checked = false; setSalesNameValue(''); };
     const resetEmployeeForm = () => { employeeForm.reset(); employeeId.value = ''; employeeStatus.value = '1'; employeeLocationCode.value = ''; };
     const resetSoundForm = () => { uploadSoundForm.reset(); soundLocationCode.value = ''; };
 
@@ -394,7 +396,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         usersTableBody.innerHTML = '';
         result.data.forEach((user) => {
             const row = document.createElement('tr');
-            row.innerHTML = `<td class="px-4 py-3 font-semibold text-slate-900">${user.username}</td><td class="px-4 py-3 text-slate-700">${user.full_name}</td><td class="px-4 py-3 text-slate-700">${user.role}</td><td class="px-4 py-3 text-slate-700">${user.default_location_code || '-'}</td><td class="px-4 py-3 text-slate-700">${user.sales_lname || '-'}</td><td class="px-4 py-3 text-center text-slate-700">${user.is_active ? 'ใช้งาน' : 'ปิด'}</td><td class="px-4 py-3 text-center"><div class="inline-flex items-center whitespace-nowrap"><button type="button" class="edit-user mr-2 rounded-xl bg-emerald-100 px-3 py-1.5 text-sm font-semibold text-emerald-700" data-user="${encodeURIComponent(JSON.stringify(user))}">แก้ไข</button><button type="button" class="delete-user rounded-xl bg-red-100 px-3 py-1.5 text-sm font-semibold text-red-700" data-id="${user.id}">ลบ</button></div></td>`;
+            row.innerHTML = `<td class="px-4 py-3 font-semibold text-slate-900">${user.username}</td><td class="px-4 py-3 text-slate-700">${user.full_name}</td><td class="px-4 py-3 text-slate-700">${user.role}</td><td class="px-4 py-3 text-slate-700">${user.default_location_code || '-'}</td><td class="px-4 py-3 text-slate-700">${user.sales_lname || '-'}</td><td class="px-4 py-3 text-center text-slate-700">${user.can_view_all_bills ? 'ได้' : '-'}</td><td class="px-4 py-3 text-center text-slate-700">${user.is_active ? 'ใช้งาน' : 'ปิด'}</td><td class="px-4 py-3 text-center"><div class="inline-flex items-center whitespace-nowrap"><button type="button" class="edit-user mr-2 rounded-xl bg-emerald-100 px-3 py-1.5 text-sm font-semibold text-emerald-700" data-user="${encodeURIComponent(JSON.stringify(user))}">แก้ไข</button><button type="button" class="delete-user rounded-xl bg-red-100 px-3 py-1.5 text-sm font-semibold text-red-700" data-id="${user.id}">ลบ</button></div></td>`;
             usersTableBody.appendChild(row);
         });
         rebuildDataTable('usersTable');
@@ -539,6 +541,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             role.value = user.role;
             userStatus.value = String(user.is_active);
             defaultLocationCode.value = user.default_location_code || '';
+            canViewAllBills.checked = Number(user.can_view_all_bills || 0) === 1;
             setSalesNameValue(user.sales_lname || '');
             return;
         }

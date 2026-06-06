@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS `app_users` (
   `role` ENUM('admin', 'user') NOT NULL DEFAULT 'user',
   `default_location_code` VARCHAR(50) DEFAULT NULL,
   `sales_lname` VARCHAR(255) DEFAULT NULL,
+  `can_view_all_bills` TINYINT(1) NOT NULL DEFAULT 0,
   `is_active` TINYINT(1) NOT NULL DEFAULT 1,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

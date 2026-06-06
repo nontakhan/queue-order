@@ -153,6 +153,31 @@ function app_execute(mysqli $conn, string $sql, string $types = '', array $param
     return $result;
 }
 
+function app_column_exists(mysqli $conn, string $table, string $column): bool
+{
+    $stmt = $conn->prepare('SELECT COUNT(*) AS total FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?');
+    if ($stmt === false) {
+        throw new Exception('Failed to prepare column check: ' . $conn->error);
+    }
+    $stmt->bind_param('ss', $table, $column);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $exists = (int) $result->fetch_assoc()['total'] > 0;
+    $stmt->close();
+    return $exists;
+}
+
+function app_ensure_user_bill_access_column(mysqli $conn): void
+{
+    if (app_column_exists($conn, 'app_users', 'can_view_all_bills')) {
+        return;
+    }
+
+    if (!$conn->query('ALTER TABLE app_users ADD COLUMN can_view_all_bills TINYINT(1) NOT NULL DEFAULT 0 AFTER sales_lname')) {
+        throw new Exception('Failed to add app_users.can_view_all_bills: ' . $conn->error);
+    }
+}
+
 function app_current_user(): ?array
 {
     app_start_session();
@@ -174,6 +199,11 @@ function app_require_login(bool $adminOnly = false): array
     return $user;
 }
 
+function app_can_view_all_bills(array $user): bool
+{
+    return ($user['role'] ?? '') === 'admin' || (int) ($user['can_view_all_bills'] ?? 0) === 1;
+}
+
 function app_get_post(string $key, $default = '')
 {
     return isset($_POST[$key]) ? trim((string) $_POST[$key]) : $default;
@@ -189,6 +219,7 @@ function app_user_payload(array $row): array
         'is_active' => (int) $row['is_active'],
         'default_location_code' => $row['default_location_code'] ?? null,
         'sales_lname' => $row['sales_lname'] ?? null,
+        'can_view_all_bills' => (int) ($row['can_view_all_bills'] ?? 0),
     ];
 }
 

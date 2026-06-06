@@ -6,10 +6,10 @@ error_reporting(0);
 require_once __DIR__ . '/_bootstrap.php';
 
 $user = app_require_login(false);
-$isAdmin = ($user['role'] ?? '') === 'admin';
+$canViewAllBills = app_can_view_all_bills($user);
 $salesLname = trim((string) ($user['sales_lname'] ?? ''));
 
-if (!$isAdmin && $salesLname === '') {
+if (!$canViewAllBills && $salesLname === '') {
     app_json_response(['success' => false, 'message' => 'ยังไม่ได้ผูกชื่อพนักงานขายให้ผู้ใช้นี้'], 422);
 }
 
@@ -23,7 +23,7 @@ if ($docno === '' || $cdCode === '' || $unit === '' || $price === '' || !is_nume
     app_json_response(['success' => false, 'message' => 'Missing required parameters'], 422);
 }
 
-if ($isAdmin && $ownerSalesLname === '') {
+if ($canViewAllBills && $ownerSalesLname === '') {
     app_json_response(['success' => false, 'message' => 'Missing owner parameter'], 422);
 }
 
@@ -32,7 +32,7 @@ $stmt = null;
 $historyStmt = null;
 
 try {
-    $targetSalesLname = $isAdmin ? $ownerSalesLname : $salesLname;
+    $targetSalesLname = $canViewAllBills ? $ownerSalesLname : $salesLname;
     $sql = 'SELECT *
             FROM transfer_data_from_mssql
             WHERE user_lname = ? AND docno = ? AND cd_code = ? AND Lname_unit = ? AND UNITPRICE = ?

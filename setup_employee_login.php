@@ -4,7 +4,6 @@ require_once __DIR__ . '/api/_bootstrap.php';
 
 app_require_login(true);
 
-$conn = app_db();
 $messages = [];
 
 function setup_column_exists(mysqli $conn, string $table, string $column): bool
@@ -29,37 +28,70 @@ function setup_index_exists(mysqli $conn, string $table, string $index): bool
     return $exists;
 }
 
-try {
+function setup_connect_profile(array $profile): mysqli
+{
+    $conn = new mysqli($profile['host'] ?? '', $profile['user'] ?? '', $profile['pass'] ?? '', $profile['name'] ?? '');
+    if ($conn->connect_error) {
+        throw new Exception($conn->connect_error);
+    }
+    $conn->set_charset('utf8mb4');
+    return $conn;
+}
+
+function setup_run_employee_login_updates(mysqli $conn, array &$messages, string $label): void
+{
     if (!setup_column_exists($conn, 'app_users', 'sales_lname')) {
         if (!$conn->query("ALTER TABLE app_users ADD COLUMN sales_lname VARCHAR(255) NULL AFTER default_location_code")) {
             throw new Exception($conn->error);
         }
-        $messages[] = 'เพิ่มคอลัมน์ app_users.sales_lname แล้ว';
+        $messages[] = "{$label}: เพิ่มคอลัมน์ app_users.sales_lname แล้ว";
     } else {
-        $messages[] = 'มีคอลัมน์ app_users.sales_lname อยู่แล้ว';
+        $messages[] = "{$label}: มีคอลัมน์ app_users.sales_lname อยู่แล้ว";
     }
 
     if (!setup_index_exists($conn, 'app_users', 'idx_app_users_sales_lname')) {
         if (!$conn->query('CREATE INDEX idx_app_users_sales_lname ON app_users (sales_lname)')) {
             throw new Exception($conn->error);
         }
-        $messages[] = 'เพิ่ม index app_users.sales_lname แล้ว';
+        $messages[] = "{$label}: เพิ่ม index app_users.sales_lname แล้ว";
     } else {
-        $messages[] = 'มี index app_users.sales_lname อยู่แล้ว';
+        $messages[] = "{$label}: มี index app_users.sales_lname อยู่แล้ว";
+    }
+
+    if (!setup_column_exists($conn, 'app_users', 'can_view_all_bills')) {
+        if (!$conn->query('ALTER TABLE app_users ADD COLUMN can_view_all_bills TINYINT(1) NOT NULL DEFAULT 0 AFTER sales_lname')) {
+            throw new Exception($conn->error);
+        }
+        $messages[] = "{$label}: เพิ่มคอลัมน์ app_users.can_view_all_bills แล้ว";
+    } else {
+        $messages[] = "{$label}: มีคอลัมน์ app_users.can_view_all_bills อยู่แล้ว";
     }
 
     if (!setup_index_exists($conn, 'transfer_data_from_mssql', 'idx_transfer_user_lname_last_update')) {
         if (!$conn->query('CREATE INDEX idx_transfer_user_lname_last_update ON transfer_data_from_mssql (user_lname, last_update)')) {
             throw new Exception($conn->error);
         }
-        $messages[] = 'เพิ่ม index transfer_data_from_mssql(user_lname, last_update) แล้ว';
+        $messages[] = "{$label}: เพิ่ม index transfer_data_from_mssql(user_lname, last_update) แล้ว";
     } else {
-        $messages[] = 'มี index transfer_data_from_mssql(user_lname, last_update) อยู่แล้ว';
+        $messages[] = "{$label}: มี index transfer_data_from_mssql(user_lname, last_update) อยู่แล้ว";
+    }
+}
+
+try {
+    foreach (app_db_profiles() as $profile) {
+        $conn = null;
+        $label = (string) ($profile['label'] ?? $profile['name'] ?? 'Database');
+        try {
+            $conn = setup_connect_profile($profile);
+            setup_run_employee_login_updates($conn, $messages, $label);
+        } finally {
+            if ($conn instanceof mysqli) {
+                $conn->close();
+            }
+        }
     }
 } catch (Exception $e) {
     $messages[] = 'เกิดข้อผิดพลาด: ' . $e->getMessage();
-} finally {
-    $conn->close();
 }
 ?>
 <!DOCTYPE html>

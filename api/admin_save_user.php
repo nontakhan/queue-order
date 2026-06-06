@@ -16,6 +16,7 @@ $defaultLocationCode = app_get_post('default_location_code', '');
 $defaultLocationCode = $defaultLocationCode === '' ? null : strtoupper($defaultLocationCode);
 $salesLname = app_get_post('sales_lname', '');
 $salesLname = $salesLname === '' ? null : $salesLname;
+$canViewAllBills = app_get_post('can_view_all_bills', '0') === '1' ? 1 : 0;
 $isActive = app_get_post('is_active', '1') === '1' ? 1 : 0;
 $password = app_get_post('password', '');
 
@@ -25,33 +26,52 @@ if ($username === '' || $fullName === '') {
 
 $conn = app_db();
 
-if ($id > 0) {
-    if ($password !== '') {
-        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $conn->prepare('UPDATE app_users SET username = ?, full_name = ?, role = ?, default_location_code = ?, sales_lname = ?, is_active = ?, password_hash = ? WHERE id = ?');
-        $stmt->bind_param('sssssisi', $username, $fullName, $role, $defaultLocationCode, $salesLname, $isActive, $passwordHash, $id);
-    } else {
-        $stmt = $conn->prepare('UPDATE app_users SET username = ?, full_name = ?, role = ?, default_location_code = ?, sales_lname = ?, is_active = ? WHERE id = ?');
-        $stmt->bind_param('sssssii', $username, $fullName, $role, $defaultLocationCode, $salesLname, $isActive, $id);
-    }
-} else {
-    if ($password === '') {
-        $conn->close();
-        app_json_response(['success' => false, 'message' => 'Password is required for new user'], 422);
-    }
-    $passwordHash = password_hash($password, PASSWORD_DEFAULT);
-    $stmt = $conn->prepare('INSERT INTO app_users (username, password_hash, full_name, role, default_location_code, sales_lname, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)');
-    $stmt->bind_param('ssssssi', $username, $passwordHash, $fullName, $role, $defaultLocationCode, $salesLname, $isActive);
-}
+try {
+    app_ensure_user_bill_access_column($conn);
 
-if (!$stmt->execute()) {
-    $message = $conn->errno === 1062 ? 'Username already exists' : $stmt->error;
+    if ($id > 0) {
+        if ($password !== '') {
+            $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+            $stmt = $conn->prepare('UPDATE app_users SET username = ?, full_name = ?, role = ?, default_location_code = ?, sales_lname = ?, can_view_all_bills = ?, is_active = ?, password_hash = ? WHERE id = ?');
+            if ($stmt === false) {
+                throw new Exception($conn->error);
+            }
+            $stmt->bind_param('sssssiisi', $username, $fullName, $role, $defaultLocationCode, $salesLname, $canViewAllBills, $isActive, $passwordHash, $id);
+        } else {
+            $stmt = $conn->prepare('UPDATE app_users SET username = ?, full_name = ?, role = ?, default_location_code = ?, sales_lname = ?, can_view_all_bills = ?, is_active = ? WHERE id = ?');
+            if ($stmt === false) {
+                throw new Exception($conn->error);
+            }
+            $stmt->bind_param('sssssiii', $username, $fullName, $role, $defaultLocationCode, $salesLname, $canViewAllBills, $isActive, $id);
+        }
+    } else {
+        if ($password === '') {
+            $conn->close();
+            app_json_response(['success' => false, 'message' => 'Password is required for new user'], 422);
+        }
+        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+        $stmt = $conn->prepare('INSERT INTO app_users (username, password_hash, full_name, role, default_location_code, sales_lname, can_view_all_bills, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+        if ($stmt === false) {
+            throw new Exception($conn->error);
+        }
+        $stmt->bind_param('ssssssii', $username, $passwordHash, $fullName, $role, $defaultLocationCode, $salesLname, $canViewAllBills, $isActive);
+    }
+
+    if (!$stmt->execute()) {
+        $message = $conn->errno === 1062 ? 'Username already exists' : $stmt->error;
+        $stmt->close();
+        $conn->close();
+        app_json_response(['success' => false, 'message' => $message], 422);
+    }
+
     $stmt->close();
     $conn->close();
-    app_json_response(['success' => false, 'message' => $message], 422);
+} catch (Exception $e) {
+    if (isset($stmt) && $stmt instanceof mysqli_stmt) {
+        $stmt->close();
+    }
+    $conn->close();
+    app_error_response('Save User Error', 500, $e);
 }
-
-$stmt->close();
-$conn->close();
 
 app_json_response(['success' => true]);

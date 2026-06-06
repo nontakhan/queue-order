@@ -6,10 +6,10 @@ error_reporting(0);
 require_once __DIR__ . '/_bootstrap.php';
 
 $user = app_require_login(false);
-$isAdmin = ($user['role'] ?? '') === 'admin';
+$canViewAllBills = app_can_view_all_bills($user);
 $salesLname = trim((string) ($user['sales_lname'] ?? ''));
 
-if (!$isAdmin && $salesLname === '') {
+if (!$canViewAllBills && $salesLname === '') {
     app_json_response([
         'success' => false,
         'message' => 'ยังไม่ได้ผูกชื่อพนักงานขายให้ผู้ใช้นี้',
@@ -35,7 +35,7 @@ try {
     $params = [];
     $types = '';
 
-    if (!$isAdmin) {
+    if (!$canViewAllBills) {
         $whereClauses[] = 'user_lname = ?';
         $params[] = $salesLname;
         $types .= 's';
@@ -111,8 +111,9 @@ $conn->close();
 
 app_json_response([
     'success' => true,
-    'sales_lname' => $isAdmin ? 'ทุกพนักงานขาย' : $salesLname,
-    'is_admin' => $isAdmin,
+    'sales_lname' => $canViewAllBills ? 'ทุกพนักงานขาย' : $salesLname,
+    'is_admin' => $canViewAllBills,
+    'can_view_all_bills' => $canViewAllBills,
     'data' => $items,
     'pagination' => [
         'current_page' => $page,
