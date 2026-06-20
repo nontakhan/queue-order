@@ -6,6 +6,7 @@ const root = path.resolve(__dirname, '..');
 const indexHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const reportFiles = [
   'report_namrung_customer.html',
+  'report_namrung_branch_00001_customer.html',
   'report_namrung_tool_customer.html',
   'report_namrung_thurakit_customer.html',
 ];
