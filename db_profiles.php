@@ -22,4 +22,11 @@ return [
         'pass' => 'P@ssw0rd',
         'name' => 'queue-nrg',
     ],
+    'queue_nrn => [
+        'label' => 'queue หน้าตลาด',
+        'host' => '10.10.202.156',
+        'user' => 'nr',
+        'pass' => 'P@ssw0rd',
+        'name' => 'queue-nrn',
+    ],
 ];
