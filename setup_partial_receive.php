@@ -112,6 +112,12 @@ function setup_partial_receive_schema(mysqli $conn): array
         $messages[] = 'คอลัมน์ received_count มีอยู่แล้ว';
     }
 
+    if (add_column_if_missing($conn, 'transfer_data_from_mssql', 'shortnote', 'VARCHAR(500) NULL', 'received_count')) {
+        $messages[] = 'เพิ่มคอลัมน์ shortnote แล้ว';
+    } else {
+        $messages[] = 'คอลัมน์ shortnote มีอยู่แล้ว';
+    }
+
     execute_sql($conn, "
         UPDATE transfer_data_from_mssql
         SET received_qty_total = COALESCE(qty, 0),

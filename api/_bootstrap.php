@@ -178,6 +178,17 @@ function app_ensure_user_bill_access_column(mysqli $conn): void
     }
 }
 
+function app_ensure_transfer_shortnote_column(mysqli $conn): void
+{
+    if (app_column_exists($conn, 'transfer_data_from_mssql', 'shortnote')) {
+        return;
+    }
+
+    if (!$conn->query('ALTER TABLE transfer_data_from_mssql ADD COLUMN shortnote VARCHAR(500) NULL AFTER received_count')) {
+        throw new Exception('Failed to add transfer_data_from_mssql.shortnote: ' . $conn->error);
+    }
+}
+
 function app_current_user(): ?array
 {
     app_start_session();

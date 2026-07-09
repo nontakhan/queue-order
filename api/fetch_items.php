@@ -14,6 +14,7 @@ $page = isset($_GET['page']) && is_numeric($_GET['page']) ? max(1, (int) $_GET['
 $limit = isset($_GET['limit']) && is_numeric($_GET['limit']) ? max(1, min((int) $_GET['limit'], 5000)) : 15;
 $offset = 0;
 $searchTerm = isset($_GET['search']) ? trim($_GET['search']) : '';
+$shortnoteSearch = isset($_GET['shortnote_search']) ? trim($_GET['shortnote_search']) : '';
 $locationCode = ($user && !empty($user['default_location_code'])) ? $user['default_location_code'] : (isset($_GET['location']) ? trim($_GET['location']) : '');
 $status = isset($_GET['status']) ? trim($_GET['status']) : '';
 $customerName = isset($_GET['customer_name']) ? trim($_GET['customer_name']) : '';
@@ -32,6 +33,8 @@ $totalPages = 0;
 $totalItems = 0;
 
 try {
+    app_ensure_transfer_shortnote_column($conn);
+
     $whereClauses = [];
     $params = [];
     $types = '';
@@ -68,10 +71,17 @@ try {
     }
 
     if ($searchTerm !== '') {
-        $whereClauses[] = '(docno LIKE ? OR custname LIKE ?)';
+        $whereClauses[] = '(docno LIKE ? OR custname LIKE ? OR cd_name LIKE ?)';
         $params[] = '%' . $searchTerm . '%';
         $params[] = '%' . $searchTerm . '%';
-        $types .= 'ss';
+        $params[] = '%' . $searchTerm . '%';
+        $types .= 'sss';
+    }
+
+    if ($shortnoteSearch !== '') {
+        $whereClauses[] = 'shortnote LIKE ?';
+        $params[] = '%' . $shortnoteSearch . '%';
+        $types .= 's';
     }
 
     if ($startDate !== '' && $endDate !== '') {
@@ -110,7 +120,7 @@ try {
         $dataSql = "SELECT sub_id, docno, docdate, custname AS customer_name, cd_code,
                        cd_name, qty, Lname_unit AS unit, REMARK, UNITPRICE, branch, shipflag,
                        location_code, location,
-                       delivery_status, delivery_remark, received_by_employee, last_update, create_at,
+                       delivery_status, delivery_remark, shortnote, received_by_employee, last_update, create_at,
                        COALESCE(received_qty_total, 0) AS received_qty_total,
                        COALESCE(received_count, 0) AS received_count
                     FROM transfer_data_from_mssql {$whereSql}

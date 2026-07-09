@@ -19,6 +19,11 @@
         .loader { border-top-color: #16a34a; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .item-row { cursor: pointer; }
+        .shortnote-btn { cursor: pointer; }
+        .shortnote-btn--has-note { background: #dcfce7; color: #166534; border-color: #86efac; }
+        .shortnote-btn--has-note:hover { background: #bbf7d0; }
+        .shortnote-btn--empty { background: #f1f5f9; color: #64748b; border-color: #cbd5e1; }
+        .shortnote-btn--empty:hover { background: #e2e8f0; color: #334155; }
         .page-grid {
             background-image: linear-gradient(rgba(15,23,42,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.05) 1px, transparent 1px);
             background-size: 28px 28px;
@@ -64,23 +69,32 @@
 
         <div id="mainContent">
             <div class="mb-6 rounded-[1.75rem] border border-slate-200/80 bg-white/95 p-5 text-slate-900 shadow-xl shadow-slate-200/70 backdrop-blur md:p-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                    <div class="lg:col-span-2">
-                        <label for="searchInput" class="block text-sm font-medium text-gray-700 mb-1">ค้นหา DocNo / ชื่อลูกค้า</label>
-                        <div class="relative">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg></div>
-                            <input type="text" id="searchInput" placeholder="ค้นหา DocNo หรือชื่อลูกค้า..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition">
+                <div class="space-y-4">
+                    <div id="searchFiltersRow" class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                        <div>
+                            <label for="searchInput" class="block text-sm font-medium text-gray-700 mb-1">ค้นหา DocNo / ชื่อลูกค้า / ชื่อสินค้า</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg></div>
+                                <input type="text" id="searchInput" placeholder="ค้นหา DocNo ชื่อลูกค้า หรือชื่อสินค้า..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition">
+                            </div>
+                        </div>
+                        <div>
+                            <label for="shortnoteSearchInput" class="block text-sm font-medium text-gray-700 mb-1">ค้นหา Shortnote</label>
+                            <input type="text" id="shortnoteSearchInput" placeholder="ค้นหา shortnote..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition">
                         </div>
                     </div>
-                    <div>
-                        <label for="startDate" class="block text-sm font-medium text-gray-700 mb-1">จากวันที่</label>
-                        <input type="date" id="startDate" class="w-full py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition px-3">
+                    <div id="dateFiltersRow" class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div>
+                            <label for="startDate" class="block text-sm font-medium text-gray-700 mb-1">จากวันที่</label>
+                            <input type="date" id="startDate" class="w-full py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition px-3">
+                        </div>
+                        <div>
+                            <label for="endDate" class="block text-sm font-medium text-gray-700 mb-1">ถึงวันที่</label>
+                            <input type="date" id="endDate" class="w-full py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition px-3">
+                        </div>
                     </div>
-                    <div>
-                        <label for="endDate" class="block text-sm font-medium text-gray-700 mb-1">ถึงวันที่</label>
-                        <input type="date" id="endDate" class="w-full py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition px-3">
-                    </div>
-                    <div class="flex gap-2 md:col-span-2 lg:col-span-4 justify-end">
+                    <div class="flex flex-col gap-2 justify-end sm:flex-row">
+                         <button id="shortnoteSearchBtn" class="bg-sky-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-sky-600 transition w-full sm:w-auto">ค้นหา Shortnote</button>
                          <button id="filterBtn" class="bg-green-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-600 transition w-full sm:w-auto">กรองข้อมูล</button>
                          <button id="clearFilterBtn" class="bg-gray-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-gray-600 transition w-full sm:w-auto">ล้างค่า</button>
                     </div>
@@ -113,6 +127,7 @@
                                 <th class="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">ชื่อสินค้า</th>
                                 <th class="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">จำนวน</th>
                                 <th class="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">หน่วย</th>
+                                <th class="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">Shortnote</th>
                                 <th class="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">อัปเดตล่าสุด / หมายเหตุ</th>
                                 <th id="manageHeaderCell" class="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-center hidden">จัดการ</th>
                             </tr>
@@ -133,6 +148,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const tableBody = document.getElementById('itemsTableBody');
     const tableStatus = document.getElementById('tableStatus');
     const searchInput = document.getElementById('searchInput');
+    const shortnoteSearchInput = document.getElementById('shortnoteSearchInput');
+    const shortnoteSearchBtn = document.getElementById('shortnoteSearchBtn');
     const paginationControls = document.getElementById('paginationControls');
     const startDateInput = document.getElementById('startDate');
     const endDateInput = document.getElementById('endDate');
@@ -151,6 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_FETCH_ITEMS = './api/fetch_items.php';
     const API_GET_DETAILS = './api/get_item_details.php';
     const API_UPDATE_STATUS = './api/update_status.php';
+    const API_UPDATE_SHORTNOTE = './api/update_shortnote.php';
     const API_DELETE_ITEM = './api/delete_item.php';
     const API_GET_LOCATION_EMPLOYEES = './api/get_location_employees.php';
 
@@ -278,6 +296,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const hideStatus = () => { tableBody.innerHTML = ''; tableStatus.classList.add('hidden'); };
 
     const getItemKey = ({ docno = '', subId = '', cdcode = '', locationCode = '', unit = '', price = '' }) => [docno, subId, cdcode, locationCode, unit, price].join('||');
+
+    const buildShortnoteButtonHTML = (shortnote = '') => {
+        const hasShortnote = shortnote.trim() !== '';
+        const buttonClass = hasShortnote ? 'shortnote-btn--has-note' : 'shortnote-btn--empty';
+        const title = hasShortnote ? 'ดู Shortnote' : 'เพิ่ม Shortnote';
+        const iconPath = hasShortnote
+            ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>'
+            : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>';
+
+        return `
+            <button type="button" class="shortnote-btn ${buttonClass} inline-flex h-10 w-10 items-center justify-center rounded-lg border transition focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-1" data-has-shortnote="${hasShortnote ? '1' : '0'}" title="${title}" aria-label="${title}">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${iconPath}</svg>
+            </button>
+        `;
+    };
 
     const updateBulkDeleteState = () => {
         const selectedCount = selectedCancelledItems.size;
@@ -458,6 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showLoading();
         currentPage = page;
         const searchTerm = searchInput.value.trim();
+        const shortnoteSearch = shortnoteSearchInput.value.trim();
         const startDate = startDateInput.value;
         const endDate = endDateInput.value;
         selectedCancelledItems.clear();
@@ -466,6 +500,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const params = new URLSearchParams({
                 search: searchTerm,
+                shortnote_search: shortnoteSearch,
                 page: page,
                 location: selectedLocation,
                 status: selectedStatus,
@@ -481,7 +516,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderTable(filteredItems);
                 renderPagination(result.pagination);
             } else {
-                showNoData(searchTerm || startDate || endDate ? `ไม่พบรายการตามเงื่อนไขที่กำหนด` : `ไม่มีรายการสถานะ "${selectedStatus}" ในคลังนี้`);
+                showNoData(searchTerm || shortnoteSearch || startDate || endDate ? `ไม่พบรายการตามเงื่อนไขที่กำหนด` : `ไม่มีรายการสถานะ "${selectedStatus}" ในคลังนี้`);
             }
         } catch (error) {
             console.error('Fetch error:', error);
@@ -522,12 +557,14 @@ document.addEventListener('DOMContentLoaded', () => {
             row.dataset.price = item.UNITPRICE || '0';
             row.dataset.qty = item.qty || '0';
             row.dataset.receivedQty = item.received_qty_total || '0';
+            row.dataset.shortnote = item.shortnote || '';
             const docNoHTML = escapeHtml(item.docno || '');
             const cdCodeHTML = escapeHtml(item.cd_code || '');
             const customerNameHTML = escapeHtml(item.customer_name || 'N/A');
             const cdNameHTML = escapeHtml(item.cd_name || '');
             const unitHTML = escapeHtml(item.unit || '');
             const priceHTML = escapeHtml(item.UNITPRICE || '0');
+            const shortnoteButtonHTML = buildShortnoteButtonHTML(item.shortnote || '');
             const isCancelledPage = selectedStatus === CANCELLED_STATUS;
             const itemKey = getItemKey({
                 docno: item.docno || '',
@@ -549,6 +586,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="px-6 py-4 text-sm text-gray-700">${cdNameHTML}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${formatQty(item.qty)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${unitHTML}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">${shortnoteButtonHTML}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${deliveryInfo}</td>
             `;
             
@@ -626,6 +664,7 @@ document.addEventListener('DOMContentLoaded', () => {
                              <div><p class="text-gray-500">อัปเดตล่าสุด</p><p class="font-semibold">${escapeHtml(lastUpdateText)}</p></div>
                              <div><p class="text-gray-500">เจ้าหน้าที่รับสินค้า</p><p class="font-semibold">${escapeHtml(item.received_by_employee || '-')}</p></div>
                              <div class="md:col-span-2"><p class="text-gray-500">หมายเหตุการตรวจรับ</p><p class="font-semibold">${escapeHtml(item.delivery_remark || '-')}</p></div>
+                             <div class="md:col-span-2"><p class="text-gray-500">Shortnote</p><p class="font-semibold">${escapeHtml(item.shortnote || '-')}</p></div>
                         </div>
                     </section>
                     ${buildReceiveHistoryHTML(item)}
@@ -809,6 +848,70 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    const saveShortnoteForRow = async (row, shortnote) => {
+        if (!row) {
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('docno', row.dataset.docno || '');
+        formData.append('sub_id', row.dataset.subId || '');
+        formData.append('cd_code', row.dataset.cdcode || '');
+        formData.append('location_code', row.dataset.locationCode || selectedLocation || '');
+        formData.append('unit', row.dataset.unit || '');
+        formData.append('price', row.dataset.price || '');
+        formData.append('shortnote', shortnote.trim());
+
+        const response = await fetch(API_UPDATE_SHORTNOTE, { method: 'POST', body: formData });
+        const resData = await response.json();
+        if (!resData.success) {
+            throw new Error(resData.message || 'ไม่สามารถบันทึก Shortnote ได้');
+        }
+    };
+
+    const showShortnoteAddModal = async (row) => {
+        const result = await Swal.fire({
+            title: 'เพิ่ม Shortnote',
+            input: 'textarea',
+            inputPlaceholder: 'พิมพ์ shortnote...',
+            inputAttributes: {
+                maxlength: 500,
+                'aria-label': 'Shortnote'
+            },
+            showCancelButton: true,
+            confirmButtonColor: '#16a34a',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'บันทึก',
+            cancelButtonText: 'ยกเลิก',
+            inputValidator: (value) => {
+                if (!value || value.trim() === '') {
+                    return 'กรุณากรอก Shortnote';
+                }
+                if (value.length > 500) {
+                    return 'Shortnote ต้องไม่เกิน 500 ตัวอักษร';
+                }
+                return null;
+            }
+        });
+
+        if (!result.isConfirmed) {
+            return;
+        }
+
+        try {
+            await saveShortnoteForRow(row, result.value || '');
+            await Swal.fire({
+                icon: 'success',
+                title: 'บันทึก Shortnote แล้ว',
+                timer: 1200,
+                showConfirmButton: false
+            });
+            fetchItems(currentPage);
+        } catch (error) {
+            await Swal.fire('เกิดข้อผิดพลาด!', error.message, 'error');
+        }
+    };
+
     const handleBulkDelete = async () => {
         const items = Array.from(selectedCancelledItems.values());
         if (items.length === 0) {
@@ -861,6 +964,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 300); 
     });
 
+    shortnoteSearchInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            fetchItems(1);
+        }
+    });
+
+    shortnoteSearchBtn.addEventListener('click', () => {
+        fetchItems(1);
+    });
+
     filterBtn.addEventListener('click', () => {
         fetchItems(1);
     });
@@ -869,6 +982,7 @@ document.addEventListener('DOMContentLoaded', () => {
         startDateInput.value = '';
         endDateInput.value = '';
         searchInput.value = '';
+        shortnoteSearchInput.value = '';
         fetchItems(1);
     });
 
@@ -924,6 +1038,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const deleteBtn = e.target.closest('.delete-btn');
         if (deleteBtn) {
             handleDeleteItem(deleteBtn);
+            return;
+        }
+
+        const shortnoteBtn = e.target.closest('.shortnote-btn');
+        if (shortnoteBtn) {
+            const row = shortnoteBtn.closest('tr');
+            if (!row) {
+                return;
+            }
+            if (shortnoteBtn.dataset.hasShortnote === '1') {
+                showItemDetailsModal(row.dataset);
+            } else {
+                showShortnoteAddModal(row);
+            }
             return;
         }
 
