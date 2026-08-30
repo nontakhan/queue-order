@@ -53,14 +53,22 @@ assert(
 assert(
   historyHtml.includes('shortnote-btn--has-note') &&
     historyHtml.includes('shortnote-btn--empty') &&
-    historyHtml.includes('showItemDetailsModal(row.dataset)'),
-  'shortnote button should use separate colors for existing/missing notes and open the existing detail modal when a note exists'
+    historyHtml.includes('shortnote-preview') &&
+    historyHtml.includes('showShortnoteEditModal'),
+  'history.html should show existing shortnote text in the table and allow editing it'
 );
 
 assert(
   !historyHtml.includes('class="shortnote-input') &&
     !historyHtml.includes('class="save-shortnote-btn'),
   'history table should not show inline shortnote inputs or inline save buttons'
+);
+
+assert(
+  historyHtml.includes('showShortnoteModal(row)') &&
+    historyHtml.includes('inputValue: row.dataset.shortnote ||') &&
+    historyHtml.includes("const isEditing = (row.dataset.shortnote || '').trim() !== '';"),
+  'the shortnote modal should handle both adding and editing based on current row data'
 );
 
 assert(

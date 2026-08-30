@@ -298,16 +298,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const getItemKey = ({ docno = '', subId = '', cdcode = '', locationCode = '', unit = '', price = '' }) => [docno, subId, cdcode, locationCode, unit, price].join('||');
 
     const buildShortnoteButtonHTML = (shortnote = '') => {
-        const hasShortnote = shortnote.trim() !== '';
-        const buttonClass = hasShortnote ? 'shortnote-btn--has-note' : 'shortnote-btn--empty';
-        const title = hasShortnote ? 'ดู Shortnote' : 'เพิ่ม Shortnote';
+        const trimmedShortnote = shortnote.trim();
+        const hasShortnote = trimmedShortnote !== '';
+        const buttonClass = hasShortnote ? 'shortnote-btn--has-note max-w-[16rem] px-3' : 'shortnote-btn--empty h-10 w-10';
+        const title = hasShortnote ? 'แก้ไข Shortnote' : 'เพิ่ม Shortnote';
         const iconPath = hasShortnote
             ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>'
             : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>';
+        const shortnotePreviewHTML = hasShortnote
+            ? `<span class="shortnote-preview truncate text-left text-xs font-semibold">${escapeHtml(trimmedShortnote)}</span>`
+            : '';
 
         return `
-            <button type="button" class="shortnote-btn ${buttonClass} inline-flex h-10 w-10 items-center justify-center rounded-lg border transition focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-1" data-has-shortnote="${hasShortnote ? '1' : '0'}" title="${title}" aria-label="${title}">
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${iconPath}</svg>
+            <button type="button" class="shortnote-btn ${buttonClass} inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border transition focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-1" data-has-shortnote="${hasShortnote ? '1' : '0'}" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}">
+                <svg class="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${iconPath}</svg>
+                ${shortnotePreviewHTML}
             </button>
         `;
     };
@@ -869,10 +874,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const showShortnoteAddModal = async (row) => {
+    const showShortnoteModal = async (row) => {
+        const isEditing = (row.dataset.shortnote || '').trim() !== '';
         const result = await Swal.fire({
-            title: 'เพิ่ม Shortnote',
+            title: isEditing ? 'แก้ไข Shortnote' : 'เพิ่ม Shortnote',
             input: 'textarea',
+            inputValue: row.dataset.shortnote || '',
             inputPlaceholder: 'พิมพ์ shortnote...',
             inputAttributes: {
                 maxlength: 500,
@@ -911,6 +918,9 @@ document.addEventListener('DOMContentLoaded', () => {
             await Swal.fire('เกิดข้อผิดพลาด!', error.message, 'error');
         }
     };
+
+    const showShortnoteAddModal = showShortnoteModal;
+    const showShortnoteEditModal = showShortnoteModal;
 
     const handleBulkDelete = async () => {
         const items = Array.from(selectedCancelledItems.values());
@@ -1044,13 +1054,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const shortnoteBtn = e.target.closest('.shortnote-btn');
         if (shortnoteBtn) {
             const row = shortnoteBtn.closest('tr');
-            if (!row) {
-                return;
-            }
-            if (shortnoteBtn.dataset.hasShortnote === '1') {
-                showItemDetailsModal(row.dataset);
-            } else {
-                showShortnoteAddModal(row);
+            if (row) {
+                showShortnoteModal(row);
             }
             return;
         }
