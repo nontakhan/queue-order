@@ -801,7 +801,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const price = button.dataset.price || row?.dataset.price || '';
         Swal.fire({
             title: 'คุณแน่ใจหรือไม่?',
-            text: `คุณต้องการลบรายการ DocNo: ${docno} ออกจากระบบอย่างถาวร!`,
+            text: `ย้ายรายการ DocNo: ${docno} ไปเก็บในรายการที่ลบ แอดมินสามารถดูย้อนหลังได้`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
@@ -825,7 +825,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const response = await fetch(API_DELETE_ITEM, { method: 'POST', body: formData });
                     const resData = await response.json();
                     if (resData.success) {
-                        Swal.fire('ลบแล้ว!', 'รายการของคุณถูกลบเรียบร้อยแล้ว', 'success');
+                        Swal.fire('ลบแล้ว!', 'ย้ายรายการไปเก็บในรายการที่ลบแล้ว', 'success');
                         fetchItems(currentPage);
                     } else { throw new Error(resData.message || 'ไม่สามารถลบข้อมูลได้'); }
                 } catch (error) { Swal.fire('เกิดข้อผิดพลาด!', error.message, 'error'); }
@@ -930,7 +930,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const result = await Swal.fire({
             title: 'ยืนยันการลบรายการที่เลือก?',
-            text: `ต้องการลบรายการสถานะยกเลิก ${items.length} รายการออกจากระบบอย่างถาวร`,
+            text: `ย้ายรายการสถานะยกเลิก ${items.length} รายการไปเก็บในรายการที่ลบ แอดมินสามารถดูย้อนหลังได้`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',

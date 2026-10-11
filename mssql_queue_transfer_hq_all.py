@@ -216,7 +216,7 @@ def normalize_row_data(row):
     return row_data
 
 
-def build_insert_sql(column_names):
+def build_insert_sql(column_names, exclude_deleted=False):
     insert_placeholders = ", ".join(["%s"] * len(column_names))
     update_set_clause = ", ".join(
         f"{col}=VALUES({col})"
@@ -224,12 +224,28 @@ def build_insert_sql(column_names):
         if col.lower() not in ["docno", "sub_id", "cd_code", MYSQL_CREATED_AT_COLUMN]
     )
 
+    insert_source = f"VALUES ({insert_placeholders})"
+    if exclude_deleted:
+        insert_source = f"""SELECT {insert_placeholders}
+        WHERE NOT EXISTS (
+            SELECT 1 FROM deleted_transfer_items
+            WHERE docno = %s AND sub_id <=> %s AND cd_code = %s
+        )"""
+
     return f"""
     INSERT INTO {MYSQL_TARGET_TABLE} ({", ".join(column_names)})
-    VALUES ({insert_placeholders})
+    {insert_source}
     ON DUPLICATE KEY UPDATE
     {update_set_clause}
     """
+
+
+def has_deleted_items_archive(mysql_cursor):
+    mysql_cursor.execute(
+        """SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'deleted_transfer_items'"""
+    )
+    return mysql_cursor.fetchone()[0] > 0
 
 
 def ensure_created_at_column(mysql_cursor):
@@ -321,7 +337,8 @@ def transfer_data_from_mssql_to_mysql(job, dry_run=False):
             print("Dry run enabled. Skipping MySQL UPSERT.")
             return
 
-        insert_sql = build_insert_sql(column_names)
+        exclude_deleted = has_deleted_items_archive(mysql_cursor)
+        insert_sql = build_insert_sql(column_names, exclude_deleted=exclude_deleted)
         processed_keys = set()
         skipped_rows_summary = []
 
@@ -335,7 +352,10 @@ def transfer_data_from_mssql_to_mysql(job, dry_run=False):
             processed_keys.add(current_key)
 
             try:
-                mysql_cursor.execute(insert_sql, tuple(normalize_row_data(row)))
+                values = tuple(normalize_row_data(row))
+                if exclude_deleted:
+                    values += current_key
+                mysql_cursor.execute(insert_sql, values)
 
                 if (index + 1) % 100 == 0:
                     mysql_conn.commit()
@@ -352,7 +372,7 @@ def transfer_data_from_mssql_to_mysql(job, dry_run=False):
                 continue
 
         mysql_conn.commit()
-        print(f"Data transfer completed successfully! Transferred {len(processed_keys)} unique rows.")
+        print(f"Data transfer completed successfully! Processed {len(processed_keys)} unique source rows. Archive exclusion: {exclude_deleted}.")
 
         if skipped_rows_summary:
             print("\n--- Skipped Rows Summary ---")

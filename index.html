@@ -112,6 +112,7 @@
                                 <svg class="mr-2 h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                 ดูรายการที่ยกเลิก
                             </a>
+                            <a id="deletedItemsLink" href="deleted_items.php" class="hidden header-action-btn inline-flex rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800">รายการที่ลบ</a>
                         </div>
                         <div id="currentUserPanel" class="hidden items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
                             <span class="text-emerald-700">ผู้ใช้:</span>
@@ -398,6 +399,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentUserName = document.getElementById('currentUserName');
         const logoutBtn = document.getElementById('logoutBtn');
         const canViewAllBills = currentUser && Number(currentUser.can_view_all_bills || 0) === 1;
+        document.getElementById('deletedItemsLink').classList.toggle('hidden', !currentUser || currentUser.role !== 'admin');
 
         if (currentUser) {
             const displayName = currentUser.full_name || currentUser.username || 'ผู้ใช้';
@@ -892,6 +894,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('postponedLink').href = `history.html?location=${encodeURIComponent(selectedLocationInfo.location_code)}&status=${encodeURIComponent('เลื่อน')}&location_name=${encodeURIComponent(selectedLocationInfo.location)}`;
         document.getElementById('partialReceivedLink').href = `history.html?location=${encodeURIComponent(selectedLocationInfo.location_code)}&status=${encodeURIComponent('รับบางส่วน')}&location_name=${encodeURIComponent(selectedLocationInfo.location)}`;
         document.getElementById('cancelledLink').href = `history.html?location=${encodeURIComponent(selectedLocationInfo.location_code)}&status=${encodeURIComponent('ยกเลิก')}&location_name=${encodeURIComponent(selectedLocationInfo.location)}`;
+        document.getElementById('deletedItemsLink').href = `deleted_items.php?location_code=${encodeURIComponent(selectedLocationInfo.location_code)}`;
         historyButtons.classList.remove('hidden');
 
         // Unlock AudioContext ทันทีตอนคลิก (ก่อน await ใดๆ)
