@@ -2,7 +2,7 @@
 
 ฟังก์ชันนี้ใช้ `deleted_transfer_items` ตาม `setup_deleted_items.sql` ในแต่ละชุดฐานข้อมูล ระบบสร้างตารางอัตโนมัติเมื่อใช้งานครั้งแรก และตรวจว่า source/archive ใช้ InnoDB ก่อนลบ สำเนาเก็บทุกคอลัมน์ต้นฉบับ ประวัติรับสินค้า เวลาตาม Asia/Bangkok และผู้ลบใน transaction เดียวกับการนำออกจากตารางเดิม
 
-หน้า `deleted_items.php` และ API รายการ/รายละเอียดต้องมี `role=admin` สิทธิ์ `can_view_all_bills` ไม่ให้เข้าถึงหน้านี้ สคริปต์นำเข้า `mssql_queue_transfer_*_all.py` ทั้ง 4 ชุดที่แก้แล้วต้องใช้ในงานนำเข้าจริงเพื่อข้ามรายการที่ลบตาม `(docno, sub_id, cd_code)`
+หน้า `deleted_items.php` และ API รายการ/รายละเอียดต้องมี `role=admin` สิทธิ์ `can_view_all_bills` ไม่ให้เข้าถึงหน้านี้ สคริปต์นำเข้า `mssql_queue_transfer_*_all.py` ทั้ง 4 ชุดนำเข้าตาม flow เดิม: หากข้อมูลต้นทางยังมีอยู่ รายการที่ลบจากตารางหลักจะถูกดึงกลับมาได้ด้วย UPSERT โดยไม่แก้ไขหรือลบประวัติใน `deleted_transfer_items` และยังนำเข้าได้ในฐานข้อมูลที่ไม่มีตารางประวัติ
 
 ชุดทดสอบเชื่อมต่อเฉพาะ MariaDB ที่ `127.0.0.1` พอร์ต `3307` บัญชี root ของฐานข้อมูลทดสอบ เปลี่ยนพอร์ตด้วย `QUEUE_TEST_MYSQL_PORT` ได้ สร้าง/ลบเฉพาะฐานข้อมูลชื่อ `codex_queue_archive_test_*` และ `codex_queue_archive_http_*` หรือ temporary tables ไม่ใช้ฐานข้อมูลตาม config ของแอป
 
