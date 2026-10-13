@@ -72,7 +72,10 @@
 
         <section class="rounded-2xl bg-white shadow-sm">
             <div id="batchActionBar" class="mx-4 mt-4 hidden flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
-                <p class="text-sm font-semibold text-red-900">เลือกแล้ว <span id="selectedCount">0</span> รายการ</p>
+                <div>
+                    <p class="text-sm font-semibold text-red-900">เลือกแล้ว <span id="selectedCount">0</span> รายการ</p>
+                    <p id="selectionHint" class="mt-1 text-sm text-red-800" aria-live="polite">ลบได้เฉพาะรายการที่สถานะยกเลิกแล้ว</p>
+                </div>
                 <div class="flex flex-wrap gap-2">
                     <button type="button" id="clearSelectionBtn" class="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">ยกเลิกการเลือก</button>
                     <button type="button" id="deleteSelectedBtn" class="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50">ลบรายการที่เลือก</button>
@@ -175,7 +178,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         unit: row?.dataset.unit || '',
         price: row?.dataset.price || '0',
         user_lname: row?.dataset.userlname || '',
-        shipflag: row?.dataset.shipflag || '0'
+        shipflag: row?.dataset.shipflag || '0',
+        delivery_status: row?.dataset.deliveryStatus || ''
     });
     const getVisibleCheckboxes = () => Array.from(tableBody.querySelectorAll('.item-checkbox:not(:disabled)'));
 
@@ -186,7 +190,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         selectedCount.textContent = String(count);
         batchActionBar.classList.toggle('hidden', count === 0);
         batchActionBar.classList.toggle('flex', count > 0);
-        deleteSelectedBtn.disabled = count === 0;
+        const canDeleteSelection = count > 0 && Array.from(selectedItems.values()).every(item => item.delivery_status === 'ยกเลิก');
+        deleteSelectedBtn.disabled = !canDeleteSelection;
+        document.getElementById('selectionHint').textContent = count > 0 && !canDeleteSelection
+            ? 'ลบได้เฉพาะรายการที่สถานะยกเลิกแล้ว กรุณายกเลิกการเลือกสถานะอื่นก่อน'
+            : 'ลบได้เฉพาะรายการที่สถานะยกเลิกแล้ว';
         selectAllVisibleItems.disabled = visibleCheckboxes.length === 0;
         selectAllVisibleItems.checked = visibleCheckboxes.length > 0 && visibleChecked === visibleCheckboxes.length;
         selectAllVisibleItems.indeterminate = visibleChecked > 0 && visibleChecked < visibleCheckboxes.length;
@@ -200,7 +208,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const renderRows = (items) => {
         tableBody.innerHTML = '';
-        const selectableKeys = new Set(items.filter(item => item.delivery_status === 'ยกเลิก').map(getItemKey));
+        const selectableKeys = new Set(items.map(getItemKey));
         for (const key of selectedItems.keys()) {
             if (!selectableKeys.has(key)) selectedItems.delete(key);
         }
@@ -224,8 +232,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             row.dataset.price = item.UNITPRICE || '0';
             row.dataset.userlname = item.user_lname || '';
             row.dataset.shipflag = item.shipflag || '0';
+            row.dataset.deliveryStatus = item.delivery_status || '';
+            if (selectedItems.has(itemKey)) selectedItems.set(itemKey, getRowItem(row));
             row.innerHTML = `
-                <td class="px-4 py-3 text-center"><input type="checkbox" class="item-checkbox h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500" ${item.delivery_status === 'ยกเลิก' ? (selectedItems.has(itemKey) ? 'checked' : '') : 'disabled title="ลบได้เฉพาะรายการที่ยกเลิกแล้ว"'} aria-label="เลือก ${escapeHtml(item.docno)}"></td>
+                <td class="px-4 py-3 text-center"><input type="checkbox" class="item-checkbox h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500" ${selectedItems.has(itemKey) ? 'checked' : ''} aria-label="เลือก ${escapeHtml(item.docno)}"></td>
                 <td class="px-4 py-3 font-semibold text-slate-900">${escapeHtml(item.docno)}</td>
                 <td class="px-4 py-3 text-slate-600">${formatDate(item.docdate)}</td>
                 <td class="px-4 py-3 text-slate-700">${escapeHtml(item.customer_name || '-')}</td>
@@ -407,6 +417,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const deleteSelected = async () => {
         const items = Array.from(selectedItems.values());
+        if (items.some(item => item.delivery_status !== 'ยกเลิก')) {
+            throw new Error('ลบได้เฉพาะรายการที่สถานะยกเลิกแล้ว กรุณายกเลิกการเลือกสถานะอื่นก่อน');
+        }
         if (items.length === 0) return;
         const confirmed = await Swal.fire({
             title: `ลบ ${items.length} รายการ?`,

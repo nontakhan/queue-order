@@ -61,18 +61,34 @@ module.exports = async ({ base, runPhp, connection, database }) => {
         runPhp(connection + `$c->select_db('${database}'); $c->query("INSERT INTO transfer_data_from_mssql
             (docno,sub_id,cd_code,location_code,Lname_unit,UNITPRICE,user_lname,delivery_status,custname,cd_name,location,qty,docdate)
             VALUES ('UI-D','4','SKU','05','ชิ้น',12.3400,'เจ้าของ A','ยกเลิก','ลูกค้า D','สินค้า D','คลัง A',2,CURDATE()),
-                   ('UI-D','5','SKU','05','ชิ้น',12.3400,'เจ้าของ A','ยกเลิก','ลูกค้า D','สินค้า D','คลัง A',2,CURDATE())");`);
+                   ('UI-D','5','SKU','05','ชิ้น',12.3400,'เจ้าของ A','ยกเลิก','ลูกค้า D','สินค้า D','คลัง A',2,CURDATE())");
+            $c->query("UPDATE transfer_data_from_mssql SET docdate=CURDATE() WHERE docno='HTTP-C'");`);
         await page.goto(`${base}/my_bills.html`);
         await page.locator('#billsTable').waitFor({ state:'visible' });
-        assert.equal(await page.locator('.item-checkbox:not(:disabled)').count(), 2, 'only cancelled rows can be selected');
-        assert.equal(await page.locator('.item-checkbox:disabled').count(), 1, 'received rows cannot be selected for deletion');
+        assert.equal(await page.locator('.item-checkbox:not(:disabled)').count(), 3, 'all visible statuses can be selected');
+        const receivedCheckbox = page.locator('tr[data-docno="HTTP-C"] .item-checkbox');
+        await receivedCheckbox.check();
+        assert.equal(await page.locator('#selectedCount').innerText(), '1');
+        assert.equal(await page.locator('#deleteSelectedBtn').isDisabled(), true, 'selection does not allow deleting received rows');
+        assert.ok((await page.locator('#selectionHint').innerText()).includes('ลบได้เฉพาะ'));
+        await receivedCheckbox.uncheck();
+        const cancelledCheckbox = page.locator('tr[data-docno="UI-D"] .item-checkbox').first();
+        await cancelledCheckbox.check();
+        assert.equal(await page.locator('#selectedCount').innerText(), '1', 'individual cancelled row selection works');
+        assert.equal(await page.locator('#deleteSelectedBtn').isEnabled(), true);
+        await page.waitForResponse(response => response.url().includes('fetch_my_bills.php'), { timeout:15000 });
+        assert.equal(await cancelledCheckbox.isChecked(), true, 'background refresh preserves selection');
+        await page.locator('#clearSelectionBtn').click();
         await page.locator('#selectAllVisibleItems').check();
+        assert.equal(await page.locator('#selectedCount').innerText(), '3', 'select all includes every status');
+        assert.equal(await page.locator('#deleteSelectedBtn').isDisabled(), true, 'mixed-status selection cannot be deleted');
+        await receivedCheckbox.uncheck();
         assert.equal(await page.locator('#selectedCount').innerText(), '2', 'different source ids remain separate in batch selection');
         await page.locator('#deleteSelectedBtn').click();
         await page.getByRole('button', { name:'ลบรายการ', exact:true }).click();
         await page.waitForFunction(() => document.querySelector('.swal2-html-container')?.textContent.includes('ลบแล้ว 2 รายการ'));
         await page.getByRole('button', { name:'OK', exact:true }).click();
-        await page.waitForFunction(() => document.querySelectorAll('.item-checkbox:not(:disabled)').length === 0);
+        await page.waitForFunction(() => document.querySelectorAll('.item-checkbox').length === 1);
         await page.setViewportSize({ width:1440, height:1000 });
         await login('user', 1);
         await page.goto(`${base}/index.html`);
