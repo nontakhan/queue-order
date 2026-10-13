@@ -608,11 +608,12 @@ document.addEventListener('DOMContentLoaded', () => {
             row.innerHTML = rowHTML;
             const deleteButton = document.createElement('button');
             deleteButton.type = 'button';
-            deleteButton.className = 'delete-btn ' + actionButtonClass + ' ml-2 bg-red-500 text-white hover:bg-red-600 focus:ring-red-300';
+            deleteButton.className = 'delete-btn ' + actionButtonClass + ' bg-red-500 text-white hover:bg-red-600 focus:ring-red-300';
             deleteButton.dataset.docno = item.docno || '';
             deleteButton.dataset.cdcode = item.cd_code || '';
             deleteButton.textContent = 'ลบ';
-            row.lastElementChild.appendChild(deleteButton);
+            const actionContainer = row.lastElementChild.querySelector('.flex') || row.lastElementChild;
+            actionContainer.appendChild(deleteButton);
             tableBody.appendChild(row);
         });
         updateBulkDeleteState();
