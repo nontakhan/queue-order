@@ -796,7 +796,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const price = button.dataset.price || row?.dataset.price || '';
         Swal.fire({
             title: 'คุณแน่ใจหรือไม่?',
-            text: `ย้ายรายการ DocNo: ${docno} ไปเก็บในรายการที่ลบ แอดมินสามารถดูย้อนหลังได้`,
+            text: `ต้องการลบรายการ DocNo: ${docno} หรือไม่?`,
             icon: 'warning',
             input: 'textarea',
             inputLabel: 'เหตุผลการลบ',
@@ -932,7 +932,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const result = await Swal.fire({
             title: 'ยืนยันการลบรายการที่เลือก?',
-            text: `ย้ายรายการ ${items.length} รายการไปเก็บในรายการที่ลบ แอดมินสามารถดูย้อนหลังได้`,
+            text: `ต้องการลบรายการที่เลือก ${items.length} รายการหรือไม่?`,
             icon: 'warning',
             input: 'textarea',
             inputLabel: 'เหตุผลการลบ',

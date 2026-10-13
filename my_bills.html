@@ -416,7 +416,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (items.length === 0) return;
         const confirmed = await Swal.fire({
             title: `ลบ ${items.length} รายการ?`,
-            text: 'รายการที่เลือกจะถูกย้ายไปเก็บในรายการที่ลบ แอดมินสามารถดูย้อนหลังได้',
+            text: 'ต้องการลบรายการที่เลือกหรือไม่?',
             icon: 'warning',
             input: 'textarea',
             inputLabel: 'เหตุผลการลบ',
