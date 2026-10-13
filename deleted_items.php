@@ -28,7 +28,7 @@ $profile = app_current_db_profile();
             <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                     <h1 class="text-2xl font-bold md:text-3xl">รายการที่ลบ</h1>
-                    <p class="mt-2 text-sm text-slate-200">รายการที่ยกเลิกและถูกลบแล้ว · <?php echo htmlspecialchars($profile['label'] ?? 'ชุดข้อมูลปัจจุบัน', ENT_QUOTES, 'UTF-8'); ?></p>
+                    <p class="mt-2 text-sm text-slate-200">รายการที่ลบจากทุกสถานะ · <?php echo htmlspecialchars($profile['label'] ?? 'ชุดข้อมูลปัจจุบัน', ENT_QUOTES, 'UTF-8'); ?></p>
                 </div>
                 <nav class="flex flex-wrap gap-2" aria-label="เมนูหลัก">
                     <a href="index.html" class="rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/20">หน้าหลัก</a>
@@ -38,7 +38,7 @@ $profile = app_current_db_profile();
         </header>
         <form id="filterForm" class="mb-4 grid gap-4 rounded-2xl bg-white p-4 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_auto] lg:items-end">
             <div>
-                <label for="searchInput" class="mb-1 block text-sm font-medium">ค้นหาเลขบิล / ลูกค้า / สินค้า / ผู้ลบ</label>
+                <label for="searchInput" class="mb-1 block text-sm font-medium">ค้นหาเลขบิล / ลูกค้า / สินค้า / ผู้ลบ / เหตุผล</label>
                 <input id="searchInput" type="search" class="w-full rounded-xl border border-slate-300 px-3 py-2.5" placeholder="พิมพ์คำค้นหา...">
             </div>
             <div>
@@ -71,6 +71,7 @@ $profile = app_current_db_profile();
                         <th scope="col" class="px-4 py-3">คลัง</th>
                         <th scope="col" class="whitespace-nowrap px-4 py-3">วันที่ลบ</th>
                         <th scope="col" class="px-4 py-3">ผู้ลบ</th>
+                        <th scope="col" class="px-4 py-3">เหตุผลการลบ</th>
                         <th scope="col" class="px-4 py-3">รายละเอียด</th>
                     </tr></thead>
                     <tbody id="tableBody" class="divide-y divide-slate-100"></tbody>
@@ -124,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const actor = deletion.deleted_by_name || deletion.deleted_by_username || 'ไม่ได้เข้าสู่ระบบ';
             const fields = Object.entries(item).map(([key, value]) => `<div class="min-w-0"><dt class="text-slate-600">${escapeHtml(fieldLabels[key.toLowerCase()] || key)}</dt><dd class="break-words whitespace-pre-wrap font-semibold text-slate-900">${escapeHtml(value ?? '-')}</dd></div>`).join('');
             const historyHtml = history.length ? `<h3 class="mt-5 mb-2 text-left font-bold">ประวัติรับสินค้า</h3><div class="space-y-2 text-left">${history.map(entry => `<div class="rounded-xl bg-slate-50 p-3 text-sm">${escapeHtml(entry.received_at)} · ${escapeHtml(entry.received_by_employee)} · ${escapeHtml(entry.received_qty)} ${escapeHtml(fieldsByName.lname_unit)}<p class="break-words">${escapeHtml(entry.note || '')}</p></div>`).join('')}</div>` : '';
-            await Swal.fire({ title:`รายละเอียด ${item.docno}`, html:`<p class="mb-4 text-left text-sm text-slate-600">ลบเมื่อ ${formatDate(deletion.deleted_at, true)} โดย ${escapeHtml(actor)}</p><dl class="grid grid-cols-1 gap-3 text-left text-sm sm:grid-cols-2">${fields}</dl>${historyHtml}`, width:'56rem', confirmButtonText:'ปิด', confirmButtonColor:'#0f172a' });
+            await Swal.fire({ title:`รายละเอียด ${item.docno}`, html:`<p class="mb-4 text-left text-sm text-slate-600">ลบเมื่อ ${formatDate(deletion.deleted_at, true)} โดย ${escapeHtml(actor)}</p><div class="mb-4 text-left text-sm"><p class="font-bold">เหตุผลการลบ</p><p class="whitespace-pre-wrap break-words">${escapeHtml(deletion.deletion_reason || 'ไม่ได้บันทึกเหตุผล (รายการเดิม)')}</p></div><dl class="grid grid-cols-1 gap-3 text-left text-sm sm:grid-cols-2">${fields}</dl>${historyHtml}`, width:'56rem', confirmButtonText:'ปิด', confirmButtonColor:'#0f172a' });
         } catch (error) { await Swal.fire('โหลดรายละเอียดไม่สำเร็จ', error.message, 'error'); }
     };
     let requestId = 0;
@@ -158,6 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="px-4 py-3">${escapeHtml(item.location_code)}<p class="text-xs text-slate-600">${escapeHtml(item.location || '')}</p></td>
                 <td class="whitespace-nowrap px-4 py-3">${formatDate(item.deleted_at, true)}</td>
                 <td class="min-w-[9rem] px-4 py-3">${escapeHtml(item.deleted_by_name || item.deleted_by_username || 'ไม่ได้เข้าสู่ระบบ')}</td>
+                <td class="min-w-[12rem] px-4 py-3 whitespace-pre-wrap break-words">${escapeHtml(item.deletion_reason || 'ไม่ได้บันทึกเหตุผล (รายการเดิม)')}</td>
                 <td class="px-4 py-3"><button type="button" class="details-btn whitespace-nowrap rounded-xl bg-slate-100 px-3 py-2 font-semibold hover:bg-slate-200" data-id="${escapeHtml(item.id)}" aria-label="ดูรายละเอียด ${escapeHtml(item.docno)}">ดูรายละเอียด</button></td>
             </tr>`).join('');
             if (result.data.length) { tableStatus.classList.add('hidden'); archiveTable.classList.remove('hidden'); }

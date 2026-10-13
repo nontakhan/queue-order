@@ -21,7 +21,7 @@ if (!is_array($items)) {
 
 $conn = app_db();
 try {
-    $deleted = app_archive_cancelled_items($conn, $items, $user, true);
+    $deleted = app_archive_items($conn, $items, $user, $_POST['deletion_reason'] ?? '', true);
     $conn->close();
     app_json_response(['success' => true, 'deleted' => $deleted, 'message' => 'ย้ายไปเก็บในรายการที่ลบแล้ว']);
 } catch (InvalidArgumentException | DomainException $error) {

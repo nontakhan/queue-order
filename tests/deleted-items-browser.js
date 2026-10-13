@@ -46,6 +46,7 @@ module.exports = async ({ base, runPhp, connection, database }) => {
         await page.getByRole('dialog').waitFor();
         assert.ok((await page.getByRole('dialog').innerText()).includes('บันทึกเดิม'));
         assert.ok((await page.getByRole('dialog').innerText()).includes('12.3400'));
+        assert.ok((await page.getByRole('dialog').innerText()).includes('แก้ไขรายการ'));
         await capture('deleted-items-details.png');
         await page.setViewportSize({ width:390, height:844 });
         await capture('deleted-items-details-mobile.png');
@@ -57,6 +58,53 @@ module.exports = async ({ base, runPhp, connection, database }) => {
         await page.locator('#searchBtn').click();
         await page.waitForFunction(() => document.getElementById('tableStatus').textContent.startsWith('ไม่พบรายการ'));
         assert.equal(await page.locator('#archiveTable').isVisible(), false, 'empty result hides old rows');
+        // Exercise warehouse history deletion for every rendered status and both dialogs.
+        for (const [index, status] of ['รับแล้ว', 'เลื่อน', 'รับบางส่วน', 'ยกเลิก', 'รอตรวจรับ'].entries()) {
+            const docno = `UI-H-${index}`;
+            runPhp(connection + `$c->select_db('${database}'); $c->query("INSERT INTO transfer_data_from_mssql
+                (docno,sub_id,cd_code,location_code,Lname_unit,UNITPRICE,user_lname,delivery_status,custname,cd_name,location,qty,docdate)
+                VALUES ('${docno}','1','SKU','05','ชิ้น',12.3400,'เจ้าของ A','${status}','ลูกค้าประวัติ','สินค้า','คลัง A',2,CURDATE())");`);
+            await page.goto(`${base}/history.html?location=05&status=${encodeURIComponent(status)}`);
+            const row = page.locator(`tr[data-docno="${docno}"]`);
+            await row.waitFor();
+            if (index === 2) {
+                await row.locator('.item-select-checkbox').check();
+                await page.locator('#bulkDeleteBtn').click();
+            } else {
+                await row.locator('.delete-btn').click();
+            }
+            const confirm = page.locator('.swal2-confirm');
+            await confirm.click();
+            await page.locator('.swal2-validation-message').waitFor({state:'visible'});
+            assert.equal(await row.count(), 1, 'history blank reason leaves source visible');
+            await page.getByRole('textbox', {name:'เหตุผลการลบ',exact:true}).fill(`เหตุผลประวัติ ${index}`);
+            const response = await Promise.all([page.waitForResponse(r => r.url().endsWith('/api/delete_item.php')), confirm.click()]);
+            assert.equal((await response[0].json()).success, true);
+            await page.waitForFunction(() => document.querySelector('.swal2-title')?.textContent.includes('ลบแล้ว'));
+            await page.locator('.swal2-confirm').click();
+            await row.waitFor({state:'detached'});
+        }
+        // All report copies use the shared deletion endpoint and need the reason too.
+        for (const [index, [file, customer]] of [
+            ['report_namrung_customer.html','นำรุ่งเคหะภัณฑ์สำนักงานใหญ่'],
+            ['report_namrung_branch_00001_customer.html','นำรุ่งเคหะภัณฑ์สาขาที่00001'],
+            ['report_namrung_thurakit_customer.html','นำรุ่งธกิจสำนักงานใหญ่'],
+            ['report_namrung_tool_customer.html','นำรุ่งทูลสำนักงานใหญ่'],
+        ].entries()) {
+            const docno = `UI-R-${index}`;
+            runPhp(connection + `$c->select_db('${database}'); $c->query("INSERT INTO transfer_data_from_mssql
+                (docno,sub_id,cd_code,location_code,Lname_unit,UNITPRICE,user_lname,delivery_status,custname,cd_name,location,qty,docdate)
+                VALUES ('${docno}','1','SKU','05','ชิ้น',12.3400,'เจ้าของ A','รับบางส่วน','${customer}','สินค้า','คลัง A',2,CURDATE())");`);
+            await page.goto(`${base}/${file}`);
+            await page.locator('.delete-btn').first().waitFor();
+            await page.locator(`.delete-btn[data-docno="${docno}"]`).click();
+            await page.getByRole('textbox', {name:'เหตุผลการลบ',exact:true}).fill(`เหตุผลรายงาน ${index}`);
+            const response = await Promise.all([page.waitForResponse(r => r.url().endsWith('/api/delete_item.php')), page.locator('.swal2-confirm').click()]);
+            assert.equal((await response[0].json()).success, true);
+            await page.waitForFunction(() => document.querySelector('.swal2-title')?.textContent.includes('สำเร็จ'));
+            await page.locator('.swal2-confirm').click();
+            assert.equal(await page.locator(`.delete-btn[data-docno="${docno}"]`).count(), 0);
+        }
         // Two source rows share the old identity but have different sub_id values.
         runPhp(connection + `$c->select_db('${database}'); $c->query("INSERT INTO transfer_data_from_mssql
             (docno,sub_id,cd_code,location_code,Lname_unit,UNITPRICE,user_lname,delivery_status,custname,cd_name,location,qty,docdate)
@@ -69,8 +117,7 @@ module.exports = async ({ base, runPhp, connection, database }) => {
         const receivedCheckbox = page.locator('tr[data-docno="HTTP-C"] .item-checkbox');
         await receivedCheckbox.check();
         assert.equal(await page.locator('#selectedCount').innerText(), '1');
-        assert.equal(await page.locator('#deleteSelectedBtn').isDisabled(), true, 'selection does not allow deleting received rows');
-        assert.ok((await page.locator('#selectionHint').innerText()).includes('ลบได้เฉพาะ'));
+        assert.equal(await page.locator('#deleteSelectedBtn').isEnabled(), true, 'received rows can also be archived');
         await receivedCheckbox.uncheck();
         const cancelledCheckbox = page.locator('tr[data-docno="UI-D"] .item-checkbox').first();
         await cancelledCheckbox.check();
@@ -81,14 +128,33 @@ module.exports = async ({ base, runPhp, connection, database }) => {
         await page.locator('#clearSelectionBtn').click();
         await page.locator('#selectAllVisibleItems').check();
         assert.equal(await page.locator('#selectedCount').innerText(), '3', 'select all includes every status');
-        assert.equal(await page.locator('#deleteSelectedBtn').isDisabled(), true, 'mixed-status selection cannot be deleted');
-        await receivedCheckbox.uncheck();
-        assert.equal(await page.locator('#selectedCount').innerText(), '2', 'different source ids remain separate in batch selection');
+        assert.equal(await page.locator('#deleteSelectedBtn').isEnabled(), true, 'mixed-status selection can be archived');
+        assert.equal(await page.locator('#selectedCount').innerText(), '3', 'different source ids remain separate in batch selection');
         await page.locator('#deleteSelectedBtn').click();
         await page.getByRole('button', { name:'ลบรายการ', exact:true }).click();
-        await page.waitForFunction(() => document.querySelector('.swal2-html-container')?.textContent.includes('ลบแล้ว 2 รายการ'));
+        await page.locator('.swal2-validation-message').waitFor({state:'visible'});
+        assert.equal(await page.locator('.item-checkbox').count(), 3, 'empty reason does not remove rows');
+        const reason = 'แก้ไขข้อมูล <img src=x onerror=alert(1)>\nรายการซ้ำ';
+        await page.getByRole('textbox', {name:'เหตุผลการลบ',exact:true}).fill(reason);
+        await page.getByRole('button', { name:'ลบรายการ', exact:true }).click();
+        await page.waitForFunction(() => document.querySelector('.swal2-html-container')?.textContent.includes('ลบแล้ว 3 รายการ'));
         await page.getByRole('button', { name:'OK', exact:true }).click();
-        await page.waitForFunction(() => document.querySelectorAll('.item-checkbox').length === 1);
+        await page.waitForFunction(() => document.querySelectorAll('.item-checkbox').length === 0);
+        await page.goto(`${base}/deleted_items.php`);
+        await page.locator('#searchInput').fill('รายการซ้ำ');
+        await page.locator('#searchBtn').click();
+        await page.waitForFunction(() => document.querySelectorAll('#tableBody tr').length === 3);
+        assert.ok((await page.locator('#tableBody').innerText()).includes(reason));
+        assert.equal(await page.locator('#tableBody img').count(), 0, 'reason HTML is shown as text');
+        await page.getByRole('button', {name:'ดูรายละเอียด HTTP-C',exact:true}).click();
+        await page.getByRole('dialog').waitFor();
+        assert.ok((await page.getByRole('dialog').innerText()).includes(reason));
+        assert.equal(await page.locator('#swal2-html-container img').count(), 0);
+        await page.getByRole('button', {name:'ปิด',exact:true}).click();
+        // Leave one visible row for the ordinary-user access check below.
+        runPhp(connection + `$c->select_db('${database}'); $c->query("INSERT INTO transfer_data_from_mssql
+            (docno,sub_id,cd_code,location_code,Lname_unit,UNITPRICE,user_lname,delivery_status,custname,cd_name,location,qty,docdate)
+            VALUES ('UI-USER','1','SKU','05','ชิ้น',12.3400,'เจ้าของ A','เลื่อน','ลูกค้า','สินค้า','คลัง A',2,CURDATE())");`);
         await page.setViewportSize({ width:1440, height:1000 });
         await login('user', 1);
         await page.goto(`${base}/index.html`);

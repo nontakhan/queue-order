@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $conn = app_db();
 try {
-    $deleted = app_archive_cancelled_items($conn, [$_POST], app_current_user());
+    $deleted = app_archive_items($conn, [$_POST], app_current_user(), $_POST['deletion_reason'] ?? '');
     $conn->close();
     app_json_response(['success' => true, 'deleted' => $deleted, 'message' => 'ย้ายไปเก็บในรายการที่ลบแล้ว']);
 } catch (InvalidArgumentException | DomainException $error) {

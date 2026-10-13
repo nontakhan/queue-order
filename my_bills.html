@@ -74,7 +74,7 @@
             <div id="batchActionBar" class="mx-4 mt-4 hidden flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
                 <div>
                     <p class="text-sm font-semibold text-red-900">เลือกแล้ว <span id="selectedCount">0</span> รายการ</p>
-                    <p id="selectionHint" class="mt-1 text-sm text-red-800" aria-live="polite">ลบได้เฉพาะรายการที่สถานะยกเลิกแล้ว</p>
+                    <p id="selectionHint" class="mt-1 text-sm text-red-800">รายการที่ลบจะถูกเก็บพร้อมเหตุผล แอดมินดูย้อนหลังได้</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
                     <button type="button" id="clearSelectionBtn" class="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">ยกเลิกการเลือก</button>
@@ -190,11 +190,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         selectedCount.textContent = String(count);
         batchActionBar.classList.toggle('hidden', count === 0);
         batchActionBar.classList.toggle('flex', count > 0);
-        const canDeleteSelection = count > 0 && Array.from(selectedItems.values()).every(item => item.delivery_status === 'ยกเลิก');
-        deleteSelectedBtn.disabled = !canDeleteSelection;
-        document.getElementById('selectionHint').textContent = count > 0 && !canDeleteSelection
-            ? 'ลบได้เฉพาะรายการที่สถานะยกเลิกแล้ว กรุณายกเลิกการเลือกสถานะอื่นก่อน'
-            : 'ลบได้เฉพาะรายการที่สถานะยกเลิกแล้ว';
+        deleteSelectedBtn.disabled = count === 0;
         selectAllVisibleItems.disabled = visibleCheckboxes.length === 0;
         selectAllVisibleItems.checked = visibleCheckboxes.length > 0 && visibleChecked === visibleCheckboxes.length;
         selectAllVisibleItems.indeterminate = visibleChecked > 0 && visibleChecked < visibleCheckboxes.length;
@@ -417,14 +413,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const deleteSelected = async () => {
         const items = Array.from(selectedItems.values());
-        if (items.some(item => item.delivery_status !== 'ยกเลิก')) {
-            throw new Error('ลบได้เฉพาะรายการที่สถานะยกเลิกแล้ว กรุณายกเลิกการเลือกสถานะอื่นก่อน');
-        }
         if (items.length === 0) return;
         const confirmed = await Swal.fire({
             title: `ลบ ${items.length} รายการ?`,
-            text: 'รายการที่ยกเลิกจะถูกย้ายไปเก็บในรายการที่ลบ แอดมินสามารถดูย้อนหลังได้',
+            text: 'รายการที่เลือกจะถูกย้ายไปเก็บในรายการที่ลบ แอดมินสามารถดูย้อนหลังได้',
             icon: 'warning',
+            input: 'textarea',
+            inputLabel: 'เหตุผลการลบ',
+            inputPlaceholder: 'กรอกเหตุผลการลบรายการ',
+            inputAttributes: { maxlength: 1000, 'aria-label': 'เหตุผลการลบ' },
+            inputValidator: value => !value?.trim() ? 'กรุณากรอกเหตุผลการลบ' : ([...value.trim()].length > 1000 ? 'เหตุผลต้องไม่เกิน 1000 ตัวอักษร' : null),
             showCancelButton: true,
             confirmButtonText: 'ลบรายการ',
             cancelButtonText: 'ยกเลิก',
@@ -434,6 +432,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const formData = new FormData();
         formData.append('items', JSON.stringify(items));
+        formData.append('deletion_reason', confirmed.value.trim());
         const response = await fetch('./api/delete_my_bills.php', { method: 'POST', body: formData, credentials: 'same-origin' });
         const result = await response.json();
         if (!response.ok || !result.success) {

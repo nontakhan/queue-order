@@ -327,7 +327,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
                     <div class="flex flex-wrap items-center justify-center gap-2">
                         <button type="button" class="detail-btn ${actionButtonClass} bg-blue-100 text-blue-800 hover:bg-blue-200 focus:ring-blue-300" data-docno="${escapeHtml(item.docno || '')}" data-cdcode="${escapeHtml(item.cd_code || '')}" data-location-code="${escapeHtml(item.location_code || '')}" data-unit="${escapeHtml(item.unit || '')}" data-price="${escapeHtml(item.UNITPRICE || '0')}" data-shipflag="${escapeHtml(item.shipflag || '0')}">ดูรายละเอียด</button>
-                        <button type="button" class="delete-btn ${actionButtonClass} bg-red-500 text-white hover:bg-red-600 focus:ring-red-300" data-docno="${item.docno || ''}" data-cdcode="${item.cd_code || ''}" data-location-code="${item.location_code || ''}">ลบ</button>
+                        <button type="button" class="delete-btn ${actionButtonClass} bg-red-500 text-white hover:bg-red-600 focus:ring-red-300" data-docno="${escapeHtml(item.docno || '')}" data-cdcode="${escapeHtml(item.cd_code || '')}" data-location-code="${escapeHtml(item.location_code || '')}" data-sub-id="${escapeHtml(item.sub_id || '')}" data-unit="${escapeHtml(item.unit || '')}" data-price="${escapeHtml(item.UNITPRICE || '0')}">ลบ</button>
                     </div>
                 </td>
             `;
@@ -389,11 +389,16 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const handleDeleteItem = async (button) => {
-        const { docno, cdcode, locationCode } = button.dataset;
+        const { docno, cdcode, locationCode, subId, unit, price } = button.dataset;
         const result = await Swal.fire({
             title: 'ยืนยันการลบ?',
-            text: `ต้องการลบ DocNo: ${docno} ใช่หรือไม่?`,
+            text: `ย้ายไปเก็บในรายการที่ลบ DocNo: ${docno} ใช่หรือไม่?`,
             icon: 'warning',
+            input: 'textarea',
+            inputLabel: 'เหตุผลการลบ',
+            inputPlaceholder: 'กรอกเหตุผลการลบรายการ',
+            inputAttributes: { maxlength: 1000, 'aria-label': 'เหตุผลการลบ' },
+            inputValidator: value => !value?.trim() ? 'กรุณากรอกเหตุผลการลบ' : ([...value.trim()].length > 1000 ? 'เหตุผลต้องไม่เกิน 1000 ตัวอักษร' : null),
             showCancelButton: true,
             confirmButtonColor: '#dc2626',
             cancelButtonColor: '#6b7280',
@@ -407,6 +412,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const formData = new FormData();
+            formData.append('deletion_reason', result.value.trim());
+            formData.append('sub_id', subId || '');
+            formData.append('unit', unit || '');
+            formData.append('price', price || '');
             formData.append('docno', docno);
             formData.append('cd_code', cdcode);
             formData.append('location_code', locationCode || '');
@@ -421,7 +430,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(resData.message || 'ไม่สามารถลบข้อมูลได้');
             }
 
-            filteredItemsCache = filteredItemsCache.filter(item => !(item.docno === docno && item.cd_code === cdcode));
+            filteredItemsCache = filteredItemsCache.filter(item => !(item.docno === docno && item.cd_code === cdcode
+                && String(item.sub_id || '') === (subId || '') && (item.location_code || '') === (locationCode || '')
+                && (item.unit || '') === (unit || '') && String(item.UNITPRICE || '0') === (price || '0')));
 
             if (filteredItemsCache.length === 0) {
                 showNoData('ไม่พบข้อมูลของลูกค้ารายนี้ตามเงื่อนไขที่กำหนด');

@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS deleted_transfer_items (
     location TEXT NULL,
     user_lname VARCHAR(255) NULL,
     snapshot_json LONGTEXT NOT NULL,
+    deletion_reason TEXT NULL,
     deleted_by_user_id BIGINT UNSIGNED NULL,
     deleted_by_username VARCHAR(255) NULL,
     deleted_by_name VARCHAR(255) NULL,

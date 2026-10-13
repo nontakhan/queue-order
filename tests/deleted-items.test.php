@@ -56,9 +56,17 @@ try {
     $conn->query("INSERT INTO item_receive_history VALUES (NULL,'DOC-A','SKU','ชิ้น',12.3400,1,'พนักงาน','2026-10-10 10:00:00','รับครั้งแรก')");
     $user = ['id' => 7, 'username' => 'seller', 'full_name' => 'ผู้ลบ A', 'role' => 'user', 'sales_lname' => 'เจ้าของ A', 'default_location_code' => '05'];
     $target = ['docno' => 'DOC-A', 'sub_id' => '1', 'cd_code' => 'SKU', 'location_code' => '05', 'unit' => 'ชิ้น', 'price' => '12.3400'];
+    // Rehearse upgrading an existing archive without rewriting old snapshots.
+    $legacySql = preg_replace('/^\s*deletion_reason TEXT NULL,\r?\n/m', '', file_get_contents(dirname(__DIR__) . '/setup_deleted_items.sql'));
+    $conn->query($legacySql);
+    check($conn->query("SHOW COLUMNS FROM deleted_transfer_items LIKE 'deletion_reason'")->num_rows === 0, 'legacy fixture starts without a reason column');
+    $conn->query("INSERT INTO deleted_transfer_items (docno,cd_code,snapshot_json,deleted_at) VALUES ('LEGACY','SKU','{\"item\":{\"docno\":\"LEGACY\"}}','2026-10-01 10:00:00')");
     app_ensure_deleted_items_table($conn);
     app_ensure_deleted_items_table($conn);
-    check(app_archive_cancelled_items($conn, [$target], $user) === 1, 'one cancelled row is archived');
+    $legacy = $conn->query("SELECT snapshot_json,deletion_reason,deleted_at FROM deleted_transfer_items WHERE docno='LEGACY'")->fetch_assoc();
+    check($legacy['snapshot_json'] === '{"item":{"docno":"LEGACY"}}' && $legacy['deletion_reason'] === null && $legacy['deleted_at'] === '2026-10-01 10:00:00', 'idempotent reason migration preserves legacy snapshots');
+    $conn->query("DELETE FROM deleted_transfer_items WHERE docno='LEGACY'");
+    check(app_archive_items($conn, [$target], $user, 'แก้ไขรายการ') === 1, 'one cancelled row is archived');
     check((int) $conn->query("SELECT COUNT(*) FROM transfer_data_from_mssql WHERE docno='DOC-A'")->fetch_row()[0] === 0, 'archived row leaves the active table');
     $archive = $conn->query('SELECT * FROM deleted_transfer_items')->fetch_assoc();
     $snapshot = json_decode($archive['snapshot_json'], true, 512, JSON_THROW_ON_ERROR);
@@ -66,24 +74,36 @@ try {
     check($snapshot['receive_history'][0]['note'] === 'รับครั้งแรก', 'receive history is preserved with the deleted row');
     check($archive['customer_name'] === 'ลูกค้าไทย', 'live uppercase customer column populates archive search metadata');
     check((int) $archive['deleted_by_user_id'] === 7 && $archive['deleted_by_name'] === 'ผู้ลบ A' && $archive['deleted_at'] !== '', 'deletion records actor and timestamp');
-    rejected(fn() => app_archive_cancelled_items($conn, [$target], $user), 'repeat deletion cannot create another archive');
+    rejected(fn() => app_archive_items($conn, [$target], $user, 'แก้ไขรายการ'), 'repeat deletion cannot create another archive');
     $received = array_replace($target, ['docno' => 'DOC-B', 'sub_id' => '2']);
-    rejected(fn() => app_archive_cancelled_items($conn, [$received], $user), 'non-cancelled rows cannot be deleted');
+    foreach (['', '   ', str_repeat('ก', 1001), ['invalid']] as $badReason) {
+        rejected(fn() => app_archive_items($conn, [$received], $user, $badReason), 'invalid deletion reason is rejected');
+    }
+    check((int) $conn->query("SELECT COUNT(*) FROM transfer_data_from_mssql WHERE docno='DOC-B'")->fetch_row()[0] === 1, 'invalid reason keeps source data');
     $other = array_replace($target, ['docno' => 'DOC-C', 'sub_id' => '3', 'location_code' => '06', 'user_lname' => 'เจ้าของ A']);
-    rejected(fn() => app_archive_cancelled_items($conn, [$other], $user), 'warehouse scope prevents deleting another warehouse');
-    rejected(fn() => app_archive_cancelled_items($conn, [$other], $user, true), 'sales owner cannot be spoofed');
+    rejected(fn() => app_archive_items($conn, [$other], $user, 'แก้ไขรายการ'), 'warehouse scope prevents deleting another warehouse');
+    rejected(fn() => app_archive_items($conn, [$other], $user, 'แก้ไขรายการ', true), 'sales owner cannot be spoofed');
     $ambiguous = array_replace($target, ['docno' => 'DOC-D', 'sub_id' => '']);
-    rejected(fn() => app_archive_cancelled_items($conn, [$ambiguous], null), 'ambiguous identities cannot delete several rows');
+    rejected(fn() => app_archive_items($conn, [$ambiguous], null, 'แก้ไขรายการ'), 'ambiguous identities cannot delete several rows');
     $cancelled = array_replace($target, ['docno' => 'DOC-D', 'sub_id' => '4']);
-    rejected(fn() => app_archive_cancelled_items($conn, [$cancelled, $received], $user), 'a failed batch rolls back earlier archive and deletion');
+    rejected(fn() => app_archive_items($conn, [ $cancelled, array_replace($received, ['docno' => 'MISSING']) ], $user, 'แก้ไขรายการ'), 'a failed batch rolls back earlier archive and deletion');
     check((int) $conn->query("SELECT COUNT(*) FROM transfer_data_from_mssql WHERE docno='DOC-D'")->fetch_row()[0] === 2 && (int) $conn->query('SELECT COUNT(*) FROM deleted_transfer_items')->fetch_row()[0] === 1, 'failed batch leaves source and archive unchanged');
     $conn->query("CREATE TRIGGER reject_archive BEFORE INSERT ON deleted_transfer_items FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Archive write failed'");
-    rejected(fn() => app_archive_cancelled_items($conn, [$cancelled], $user), 'failed archive insert keeps the source row');
+    rejected(fn() => app_archive_items($conn, [$cancelled], $user, 'แก้ไขรายการ'), 'failed archive insert keeps the source row');
     check((int) $conn->query("SELECT COUNT(*) FROM transfer_data_from_mssql WHERE docno='DOC-D'")->fetch_row()[0] === 2, 'source remains after a database write failure');
     $conn->query('DROP TRIGGER reject_archive');
-    check(app_archive_cancelled_items($conn, [$cancelled], null) === 1, 'existing anonymous warehouse flow can archive cancelled rows');
+    check(app_archive_items($conn, [$cancelled], null, 'แก้ไขรายการ') === 1, 'existing anonymous warehouse flow can archive cancelled rows');
+    foreach ([null, '', 'รอตรวจรับ', 'รับบางส่วน', 'รับแล้ว', 'เลื่อน', 'ยกเลิก'] as $index => $status) {
+        $docno = 'ALL-' . $index;
+        app_execute($conn, 'INSERT INTO transfer_data_from_mssql (docno,sub_id,cd_code,location_code,Lname_unit,UNITPRICE,user_lname,delivery_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            'ssssssss', [$docno, '1', 'SKU', '05', 'ชิ้น', '12.3400', 'เจ้าของ A', $status]);
+        $item = array_replace($target, ['docno' => $docno]);
+        check(app_archive_items($conn, [$item], $user, '  เหตุผล <b>ต้นฉบับ</b>  ') === 1, 'every status can be archived');
+        $saved = app_execute($conn, 'SELECT deletion_reason,snapshot_json FROM deleted_transfer_items WHERE docno=?', 's', [$docno])->fetch_assoc();
+        check($saved['deletion_reason'] === 'เหตุผล <b>ต้นฉบับ</b>' && json_decode($saved['snapshot_json'], true)['item']['delivery_status'] === $status, 'archive preserves reason and original status');
+    }
     $conn->query("ALTER TABLE transfer_data_from_mssql DROP PRIMARY KEY, ENGINE=MyISAM");
-    rejected(fn() => app_archive_cancelled_items($conn, [array_replace($cancelled, ['sub_id' => '5'])], null), 'nontransactional source engine fails safely before deletion');
+    rejected(fn() => app_archive_items($conn, [array_replace($cancelled, ['sub_id' => '5'])], null, 'แก้ไขรายการ'), 'nontransactional source engine fails safely before deletion');
     echo "DELETED_ITEMS_DB_OK\n";
 } finally {
     $conn->query("DROP DATABASE `$database`");

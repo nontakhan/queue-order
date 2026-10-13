@@ -8,6 +8,12 @@ function app_ensure_deleted_items_table(mysqli $conn): void
     if ($sql === false || !$conn->query($sql)) {
         throw new RuntimeException('Cannot create deleted items archive');
     }
+    $hasReason = (int) app_execute($conn, "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'deleted_transfer_items' AND COLUMN_NAME = 'deletion_reason'")->fetch_row()[0] > 0;
+    if (!$hasReason) {
+        // MariaDB's IF NOT EXISTS also handles concurrent first requests safely.
+        $conn->query('ALTER TABLE deleted_transfer_items ADD COLUMN IF NOT EXISTS deletion_reason TEXT NULL AFTER snapshot_json');
+    }
 }
 
 function app_require_archive_transactions(mysqli $conn): void
@@ -35,8 +41,15 @@ function app_deleted_identity_value(array $item, string $key): string
 }
 
 // DDL is completed before starting the transaction that stores and removes the rows.
-function app_archive_cancelled_items(mysqli $conn, array $items, ?array $user, bool $salesScope = false): int
+function app_archive_items(mysqli $conn, array $items, ?array $user, $reason, bool $salesScope = false): int
 {
+    if (!is_string($reason) || !preg_match('//u', $reason)) {
+        throw new InvalidArgumentException('กรุณากรอกเหตุผลการลบ');
+    }
+    $reason = preg_replace('/^\s+|\s+$/u', '', $reason);
+    if ($reason === '' || mb_strlen($reason, 'UTF-8') > 1000) {
+        throw new InvalidArgumentException('กรุณากรอกเหตุผลการลบ 1–1000 ตัวอักษร');
+    }
     if (count($items) === 0 || count($items) > 100 || array_keys($items) !== range(0, count($items) - 1)) {
         throw new InvalidArgumentException('กรุณาเลือก 1–100 รายการที่ต้องการลบ');
     }
@@ -107,9 +120,6 @@ function app_archive_cancelled_items(mysqli $conn, array $items, ?array $user, b
             }
             $row = $result->fetch_assoc();
             $fields = array_change_key_case($row, CASE_LOWER);
-            if (($row['delivery_status'] ?? '') !== 'ยกเลิก') {
-                throw new DomainException('ลบได้เฉพาะรายการที่มีสถานะยกเลิกแล้วเท่านั้น');
-            }
             $history = [];
             if ($hasHistory) {
                 $historyResult = app_execute($conn, 'SELECT * FROM item_receive_history
@@ -126,20 +136,19 @@ function app_archive_cancelled_items(mysqli $conn, array $items, ?array $user, b
             $deletedAt = (new DateTimeImmutable('now', new DateTimeZone('Asia/Bangkok')))->format('Y-m-d H:i:s');
             app_execute($conn, 'INSERT INTO deleted_transfer_items
                 (docno, sub_id, cd_code, customer_name, cd_name, location_code, location, user_lname,
-                 snapshot_json, deleted_by_user_id, deleted_by_username, deleted_by_name, deleted_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 'sssssssssisss', [
+                 snapshot_json, deletion_reason, deleted_by_user_id, deleted_by_username, deleted_by_name, deleted_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 'ssssssssssisss', [
                 $fields['docno'], $fields['sub_id'] ?? null, $fields['cd_code'], $fields['custname'] ?? null,
                 $fields['cd_name'] ?? null, $fields['location_code'] ?? null, $fields['location'] ?? null,
-                $fields['user_lname'] ?? null, $snapshot, $user['id'] ?? null, $user['username'] ?? null,
+                $fields['user_lname'] ?? null, $snapshot, $reason, $user['id'] ?? null, $user['username'] ?? null,
                 $user['full_name'] ?? $user['username'] ?? null, $deletedAt,
             ]);
-            $delete = $conn->prepare('DELETE FROM transfer_data_from_mssql WHERE ' . $where . ' AND delivery_status = ?');
+            $delete = $conn->prepare('DELETE FROM transfer_data_from_mssql WHERE ' . $where);
             if (!$delete) {
                 throw new RuntimeException('Cannot prepare source removal');
             }
             try {
-                $deleteParams = array_merge($params, ['ยกเลิก']);
-                $delete->bind_param($types . 's', ...$deleteParams);
+                $delete->bind_param($types, ...$params);
                 if (!$delete->execute()) {
                     throw new RuntimeException('Cannot remove archived source');
                 }

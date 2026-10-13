@@ -28,8 +28,8 @@ foreach (['startDate', 'endDate'] as $key) {
 $search = isset($_GET['search']) && is_string($_GET['search']) ? trim($_GET['search']) : '';
 $location = isset($_GET['location_code']) && is_string($_GET['location_code']) ? trim($_GET['location_code']) : '';
 if ($search !== '') {
-    $where[] = '(docno LIKE ? OR customer_name LIKE ? OR cd_code LIKE ? OR cd_name LIKE ? OR deleted_by_name LIKE ?)';
-    foreach (range(1, 5) as $ignored) {
+    $where[] = '(docno LIKE ? OR customer_name LIKE ? OR cd_code LIKE ? OR cd_name LIKE ? OR deleted_by_name LIKE ? OR deletion_reason LIKE ?)';
+    foreach (range(1, 6) as $ignored) {
         $params[] = '%' . $search . '%';
     }
 }
